@@ -1,39 +1,73 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { AuthService } from '../services/api'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { login } = useAuth()
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     try {
-      // Google OAuth implementation will go here
-      // For now, we'll simulate a successful login
-      const mockUser = {
-        id: '1',
-        email: 'user@example.com',
-        full_name: 'John Doe',
-        country: 'Kenya',
-        currency: 'KES',
-        wallet_balance_kes: 50000,
-        wallet_balance_usdt: 100.50,
-        wallet_status: 'active',
-        is_verified: true
+      // Redirect to backend Google OAuth endpoint
+      const googleAuthUrl = 'http://localhost:8000/auth/google/login'
+      window.location.href = googleAuthUrl
+    } catch (error) {
+      console.error('Google login failed:', error)
+      toast.error('Google login failed. Please try again.')
+      setIsLoading(false)
+    }
+  }
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    
+    try {
+      const response = await AuthService.login(email, password)
+      const { user, access_token, token_type } = response
+      
+      // Transform user data to match our User interface
+      const userData = {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        profile_picture: user.profile_picture,
+        phone_number: user.phone_number,
+        country: 'Kenya', // Default for now
+        currency: 'KES', // Default for now
+        wallet_balance_kes: user.wallet_balance_kes || 0,
+        wallet_balance_usdt: user.wallet_balance_usdt || 0,
+        wallet_status: user.status || 'active',
+        is_verified: user.is_email_verified || false
       }
       
-      login(mockUser)
+      const tokens = {
+        access_token,
+        token_type,
+        refresh_token: response.refresh_token
+      }
+      
+      login(userData, tokens)
+      toast.success('Login successful!')
       navigate('/dashboard')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error)
+      const errorMessage = error.response?.data?.detail || 'Login failed. Please try again.'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -97,7 +131,7 @@ export default function Login() {
           </div>
 
           {/* Email/Password Form */}
-          <form className="space-y-4">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -108,6 +142,8 @@ export default function Login() {
                 type="email"
                 autoComplete="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="input-field mt-1"
                 placeholder="Enter your email"
               />
@@ -124,6 +160,8 @@ export default function Login() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="input-field pr-10"
                   placeholder="Enter your password"
                 />

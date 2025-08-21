@@ -10,6 +10,8 @@ const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const BotList = lazy(() => import('./pages/BotList'))
 const BotDetail = lazy(() => import('./pages/BotDetail'))
+const Wallet = lazy(() => import('./pages/Wallet'))
+const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/bots" element={<BotList />} />
           <Route path="/bots/:id" element={<BotDetail />} />
+          <Route path="/wallet" element={<Wallet />} />
+          <Route path="/auth/google/callback" element={<GoogleCallback />} />
         </Routes>
       </Suspense>
     </Layout>
