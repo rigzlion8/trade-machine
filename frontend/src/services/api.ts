@@ -187,6 +187,26 @@ export class BotService {
     const response = await api.get('/trading/strategies')
     return response.data
   }
+
+  static async getBotDetail(botId: string) {
+    const response = await api.get(`/trading/bots/${botId}`)
+    return response.data
+  }
+
+  static async getBotActivity(
+    botId: string, 
+    startDate?: string, 
+    endDate?: string, 
+    activityType?: string
+  ) {
+    const params = new URLSearchParams()
+    if (startDate) params.append('start_date', startDate)
+    if (endDate) params.append('end_date', endDate)
+    if (activityType) params.append('activity_type', activityType)
+    
+    const response = await api.get(`/trading/bots/${botId}/activity?${params.toString()}`)
+    return response.data
+  }
 }
 
 // Export the api instance for direct use if needed

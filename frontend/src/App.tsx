@@ -22,7 +22,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/bots" element={<BotList />} />
-          <Route path="/bots/:id" element={<BotDetail />} />
+          <Route path="/bots/:botId" element={<BotDetail />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
         </Routes>

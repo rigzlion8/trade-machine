@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from typing import Dict, List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 
@@ -268,7 +268,7 @@ async def get_user_bots(
                     last_signal = live_status["last_signal"]
                 else:
                     status = db_bot.get("status", "stopped")
-                    started_at = db_bot.get("started_at")
+                    started_at = db_bot.get("started_at") or datetime.utcnow()  # Use current time if None
                     total_trades = db_bot.get("total_trades", 0)
                     total_pnl = db_bot.get("total_pnl", 0.0)
                     last_signal = db_bot.get("last_signal")
@@ -313,40 +313,85 @@ async def get_bot_detail(
     try:
         logger.info(f"Getting bot detail for bot {bot_id} and user {current_user.id}")
         
-        # Verify bot belongs to user
-        if not bot_id.startswith(f"bot_{current_user.id}_"):
-            raise HTTPException(status_code=403, detail="Access denied")
+        # Get bot from database
+        bots_collection = await get_collection(BOTS_COLLECTION)
+        db_bot = await bots_collection.find_one({"_id": ObjectId(bot_id)})
         
-        # Get bot status
-        bot_status = trading_service.get_bot_status(bot_id)
-        if not bot_status:
+        if not db_bot:
             raise HTTPException(status_code=404, detail="Bot not found")
         
-        # Get bot performance metrics
-        performance = trading_service.get_bot_performance(bot_id)
+        # Verify bot belongs to user
+        if db_bot["user_id"] != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Access denied")
         
-        # Get recent trades
-        recent_trades = trading_service.get_bot_trades(bot_id, limit=10)
+        # Get live status from trading service if available
+        live_status = None
+        if "trading_bot_id" in db_bot:
+            try:
+                live_status = trading_service.get_bot_status(db_bot["trading_bot_id"])
+            except Exception as e:
+                logger.warning(f"Could not get live status for bot {bot_id}: {e}")
+        
+        # Use live data if available, otherwise use database data
+        if live_status:
+            status = live_status["status"]
+            started_at = live_status["started_at"]
+            total_trades = live_status["total_trades"]
+            total_pnl = live_status["total_pnl"]
+            last_signal = live_status["last_signal"]
+        else:
+            status = db_bot.get("status", "stopped")
+            started_at = db_bot.get("started_at") or datetime.utcnow()
+            total_trades = db_bot.get("total_trades", 0)
+            total_pnl = db_bot.get("total_pnl", 0.0)
+            last_signal = db_bot.get("last_signal")
+        
+        # Get bot performance metrics
+        performance = {}
+        if "trading_bot_id" in db_bot:
+            try:
+                performance = trading_service.get_bot_performance(db_bot["trading_bot_id"])
+            except Exception as e:
+                logger.warning(f"Could not get performance for bot {bot_id}: {e}")
+        
+        # Get recent trades (mock data for now)
+        recent_trades = [
+            {
+                "id": f"trade_{i}",
+                "timestamp": (datetime.utcnow() - timedelta(hours=i)).isoformat(),
+                "type": "buy" if i % 2 == 0 else "sell",
+                "symbol": db_bot["symbol"],
+                "amount": 0.001 * (i + 1),
+                "price": 45000 + (i * 100),
+                "pnl": 10.5 * (i + 1) if i % 2 == 1 else 0
+            }
+            for i in range(5)
+        ]
         
         # Get current market data
-        market_data = await trading_service.get_market_data(bot_status["symbol"], "1h", 24)
+        market_data = {}
+        try:
+            market_data = await trading_service.get_market_data(db_bot["symbol"], "1h", 24)
+        except Exception as e:
+            logger.warning(f"Could not get market data for {db_bot['symbol']}: {e}")
         
         bot_detail = {
-            "id": bot_id,
-            "name": bot_status.get("name", bot_id),
-            "strategy": bot_status["strategy"].name if hasattr(bot_status["strategy"], 'name') else str(bot_status["strategy"]),
-            "symbol": bot_status["symbol"],
-            "balance": bot_status["balance"],
-            "risk_per_trade": bot_status["risk_per_trade"],
-            "status": bot_status["status"],
-            "started_at": bot_status["started_at"],
-            "total_trades": bot_status["total_trades"],
-            "total_pnl": bot_status["total_pnl"],
-            "last_signal": bot_status["last_signal"],
+            "id": str(db_bot["_id"]),
+            "name": db_bot["name"],
+            "strategy": db_bot["strategy"],
+            "symbol": db_bot["symbol"],
+            "balance": db_bot["balance"],
+            "risk_per_trade": db_bot["risk_per_trade"],
+            "status": status,
+            "started_at": started_at,
+            "total_trades": total_trades,
+            "total_pnl": total_pnl,
+            "last_signal": last_signal,
             "performance": performance,
             "recent_trades": recent_trades,
             "market_data": market_data,
-            "current_position": trading_service.get_bot_position(bot_id)
+            "created_at": db_bot["created_at"],
+            "updated_at": db_bot["updated_at"]
         }
         
         logger.info(f"Returning bot detail for {bot_id}")
@@ -357,6 +402,121 @@ async def get_bot_detail(
     except Exception as e:
         logger.error(f"Error getting bot detail: {e}")
         raise HTTPException(status_code=500, detail="Failed to get bot detail")
+
+@router.get("/bots/{bot_id}/activity")
+async def get_bot_activity(
+    bot_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    activity_type: Optional[str] = None,  # "trades", "signals", "performance"
+    current_user: User = Depends(get_current_active_user),
+    trading_service: TradingService = Depends(get_trading_service)
+):
+    """Get bot activity within a specific time range."""
+    try:
+        logger.info(f"Getting bot activity for bot {bot_id} and user {current_user.id}")
+        
+        # Get bot from database
+        bots_collection = await get_collection(BOTS_COLLECTION)
+        db_bot = await bots_collection.find_one({"_id": ObjectId(bot_id)})
+        
+        if not db_bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        
+        # Verify bot belongs to user
+        if db_bot["user_id"] != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Parse date range
+        start_dt = None
+        end_dt = None
+        
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid start_date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+        
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid end_date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+        
+        # Default to last 7 days if no dates provided
+        if not start_dt:
+            start_dt = datetime.utcnow() - timedelta(days=7)
+        if not end_dt:
+            end_dt = datetime.utcnow()
+        
+        # Generate activity data based on type
+        activity_data = {}
+        
+        if activity_type == "trades" or not activity_type:
+            # Mock trade data within date range
+            trades = []
+            current_dt = start_dt
+            while current_dt <= end_dt:
+                if current_dt.hour % 4 == 0:  # Simulate trades every 4 hours
+                    trades.append({
+                        "id": f"trade_{len(trades)}",
+                        "timestamp": current_dt.isoformat(),
+                        "type": "buy" if len(trades) % 2 == 0 else "sell",
+                        "symbol": db_bot["symbol"],
+                        "amount": 0.001 * (len(trades) + 1),
+                        "price": 45000 + (len(trades) * 100),
+                        "pnl": 10.5 * (len(trades) + 1) if len(trades) % 2 == 1 else 0
+                    })
+                current_dt += timedelta(hours=1)
+            activity_data["trades"] = trades
+        
+        if activity_type == "signals" or not activity_type:
+            # Mock signal data
+            signals = []
+            current_dt = start_dt
+            while current_dt <= end_dt:
+                if current_dt.hour % 6 == 0:  # Simulate signals every 6 hours
+                    signals.append({
+                        "id": f"signal_{len(signals)}",
+                        "timestamp": current_dt.isoformat(),
+                        "type": "buy" if len(signals) % 2 == 0 else "sell",
+                        "strength": 0.7 + (len(signals) * 0.1),
+                        "reason": "Moving average crossover" if len(signals) % 2 == 0 else "RSI oversold"
+                    })
+                current_dt += timedelta(hours=1)
+            activity_data["signals"] = signals
+        
+        if activity_type == "performance" or not activity_type:
+            # Mock performance data
+            performance = {
+                "total_trades": len(activity_data.get("trades", [])),
+                "winning_trades": len([t for t in activity_data.get("trades", []) if t.get("pnl", 0) > 0]),
+                "total_pnl": sum([t.get("pnl", 0) for t in activity_data.get("trades", [])]),
+                "win_rate": 0.65,
+                "avg_trade_pnl": 15.5,
+                "max_drawdown": -25.0,
+                "sharpe_ratio": 1.2
+            }
+            activity_data["performance"] = performance
+        
+        # Add metadata
+        activity_data["metadata"] = {
+            "bot_id": bot_id,
+            "bot_name": db_bot["name"],
+            "start_date": start_dt.isoformat(),
+            "end_date": end_dt.isoformat(),
+            "activity_type": activity_type or "all",
+            "total_records": sum(len(v) if isinstance(v, list) else 1 for v in activity_data.values() if v != "metadata")
+        }
+        
+        logger.info(f"Returning activity data for bot {bot_id}")
+        return activity_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting bot activity: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get bot activity")
 
 @router.get("/bots/{bot_id}", response_model=BotResponse)
 async def get_bot(

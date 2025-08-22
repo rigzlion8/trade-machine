@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, PlayIcon, StopIcon, TrashIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { PlusIcon, PlayIcon, StopIcon, TrashIcon, ChartBarIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { BotService } from '../services/api';
 
@@ -26,6 +27,7 @@ interface Strategy {
 }
 
 const BotList: React.FC = () => {
+  const navigate = useNavigate();
   const [bots, setBots] = useState<Bot[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -310,6 +312,13 @@ const BotList: React.FC = () => {
                             <PlayIcon className="h-5 w-5" />
                           </button>
                         )}
+                        <button
+                          onClick={() => navigate(`/bots/${bot.id}`)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="View Details"
+                        >
+                          <EyeIcon className="h-5 w-5" />
+                        </button>
                         <button
                           onClick={() => handleDeleteBot(bot.id)}
                           className="text-red-600 hover:text-red-900"
