@@ -11,6 +11,8 @@ from .trading_service import TradingService
 from .strategies.moving_average_strategy import MovingAverageStrategy
 from .exchanges.binance_client import BinanceClient
 from config.settings import get_settings
+from database.mongodb import get_collection
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/trading", tags=["trading"])
@@ -47,8 +49,51 @@ class StrategyResponse(BaseModel):
 # Global trading service instance
 trading_service: Optional[TradingService] = None
 
+# Bot collection name
+BOTS_COLLECTION = "trading_bots"
+
 # Add basic logging to see if the router is loaded
 logger.info("=== TRADING ROUTER LOADED ===")
+
+async def save_bot_to_db(bot_data: dict):
+    """Save bot data to MongoDB."""
+    try:
+        bots_collection = await get_collection(BOTS_COLLECTION)
+        bot_data["created_at"] = datetime.utcnow()
+        bot_data["updated_at"] = datetime.utcnow()
+        result = await bots_collection.insert_one(bot_data)
+        logger.info(f"Bot saved to database with ID: {result.inserted_id}")
+        return str(result.inserted_id)
+    except Exception as e:
+        logger.error(f"Error saving bot to database: {e}")
+        raise
+
+async def get_bots_from_db(user_id: str) -> List[dict]:
+    """Get all bots for a user from MongoDB."""
+    try:
+        bots_collection = await get_collection(BOTS_COLLECTION)
+        cursor = bots_collection.find({"user_id": user_id})
+        bots = await cursor.to_list(length=None)
+        logger.info(f"Retrieved {len(bots)} bots from database for user {user_id}")
+        return bots
+    except Exception as e:
+        logger.error(f"Error getting bots from database: {e}")
+        return []
+
+async def update_bot_in_db(bot_id: str, update_data: dict):
+    """Update bot data in MongoDB."""
+    try:
+        bots_collection = await get_collection(BOTS_COLLECTION)
+        update_data["updated_at"] = datetime.utcnow()
+        result = await bots_collection.update_one(
+            {"_id": ObjectId(bot_id)},
+            {"$set": update_data}
+        )
+        logger.info(f"Bot {bot_id} updated in database")
+        return result.modified_count > 0
+    except Exception as e:
+        logger.error(f"Error updating bot in database: {e}")
+        return False
 
 @router.get("/test")
 async def test_endpoint():
@@ -93,10 +138,27 @@ def get_trading_service() -> TradingService:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             # Return a minimal trading service to prevent crashes
-            from .trading_service import TradingService
-            from .exchanges.binance_client import BinanceClient
-            dummy_client = BinanceClient("", "", testnet=True)
-            trading_service = TradingService(dummy_client)
+            try:
+                from .trading_service import TradingService
+                from .exchanges.binance_client import BinanceClient
+                from .strategies.moving_average_strategy import MovingAverageStrategy
+                
+                dummy_client = BinanceClient("", "", testnet=True)
+                trading_service = TradingService(dummy_client)
+                
+                # Add a default strategy to the fallback service
+                ma_strategy = MovingAverageStrategy("BTCUSDT", "1h", 10, 20)
+                trading_service.add_strategy(ma_strategy)
+                logger.info("Default strategy added to fallback service")
+                
+            except Exception as fallback_error:
+                logger.error(f"Failed to create fallback trading service: {fallback_error}")
+                # Create a minimal service without strategies
+                from .trading_service import TradingService
+                from .exchanges.binance_client import BinanceClient
+                dummy_client = BinanceClient("", "", testnet=True)
+                trading_service = TradingService(dummy_client)
+            
             logger.warning("Using fallback trading service")
     else:
         logger.info("Using existing trading service instance")
@@ -115,7 +177,26 @@ async def create_bot(
         # Generate unique bot ID
         bot_id = f"bot_{current_user.id}_{int(datetime.utcnow().timestamp())}"
         
-        # Start the bot
+        # Create bot data for database
+        bot_db_data = {
+            "user_id": str(current_user.id),
+            "name": bot_data.name,
+            "strategy": bot_data.strategy,
+            "symbol": bot_data.symbol,
+            "balance": bot_data.balance,
+            "risk_per_trade": bot_data.risk_per_trade,
+            "status": "stopped",  # Start as stopped
+            "started_at": None,
+            "total_trades": 0,
+            "total_pnl": 0.0,
+            "last_signal": None,
+            "parameters": bot_data.parameters
+        }
+        
+        # Save bot to database
+        db_bot_id = await save_bot_to_db(bot_db_data)
+        
+        # Start the bot in trading service
         bot = await trading_service.start_bot(
             bot_id=bot_id,
             strategy_name=bot_data.strategy,
@@ -124,10 +205,17 @@ async def create_bot(
             risk_per_trade=bot_data.risk_per_trade
         )
         
+        # Update database with trading service data
+        await update_bot_in_db(db_bot_id, {
+            "trading_bot_id": bot["id"],
+            "status": bot["status"],
+            "started_at": bot["started_at"]
+        })
+        
         return BotResponse(
-            id=bot["id"],
+            id=db_bot_id,  # Use database ID
             name=bot_data.name,
-            strategy=bot["strategy"].name,
+            strategy=bot_data.strategy,
             symbol=bot["symbol"],
             balance=bot["balance"],
             risk_per_trade=bot["risk_per_trade"],
@@ -154,37 +242,56 @@ async def get_user_bots(
     try:
         logger.info(f"Getting bots for user {current_user.id}")
         
-        # Filter bots by user ID
-        user_bots = []
-        all_bots = trading_service.get_all_bots_status()
-        logger.info(f"Found {len(all_bots)} total bots")
-        logger.info(f"All bots data: {all_bots}")
+        # Get bots from database
+        db_bots = await get_bots_from_db(str(current_user.id))
+        logger.info(f"Found {len(db_bots)} bots in database")
         
-        for bot in all_bots:
-            if bot and bot["id"].startswith(f"bot_{current_user.id}_"):
-                try:
-                    logger.info(f"Processing bot: {bot}")
-                    strategy_name = bot["strategy"]["name"] if isinstance(bot["strategy"], dict) else bot["strategy"].name
-                    logger.info(f"Strategy name: {strategy_name}")
-                    
-                    user_bots.append(BotResponse(
-                        id=bot["id"],
-                        name=bot["id"],  # Use ID as name for now
-                        strategy=strategy_name,
-                        symbol=bot["symbol"],
-                        balance=bot["balance"],
-                        risk_per_trade=bot["risk_per_trade"],
-                        status=bot["status"],
-                        started_at=bot["started_at"],
-                        total_trades=bot["total_trades"],
-                        total_pnl=bot["total_pnl"],
-                        last_signal=bot["last_signal"]
-                    ))
-                    logger.info(f"Successfully added bot: {bot['id']}")
-                except Exception as bot_error:
-                    logger.error(f"Error processing bot {bot.get('id', 'unknown')}: {bot_error}")
-                    logger.error(f"Bot data: {bot}")
-                    continue
+        user_bots = []
+        for db_bot in db_bots:
+            try:
+                logger.info(f"Processing database bot: {db_bot}")
+                
+                # Get live status from trading service if available
+                live_status = None
+                if "trading_bot_id" in db_bot:
+                    try:
+                        live_status = trading_service.get_bot_status(db_bot["trading_bot_id"])
+                    except Exception as e:
+                        logger.warning(f"Could not get live status for bot {db_bot['_id']}: {e}")
+                
+                # Use live data if available, otherwise use database data
+                if live_status:
+                    status = live_status["status"]
+                    started_at = live_status["started_at"]
+                    total_trades = live_status["total_trades"]
+                    total_pnl = live_status["total_pnl"]
+                    last_signal = live_status["last_signal"]
+                else:
+                    status = db_bot.get("status", "stopped")
+                    started_at = db_bot.get("started_at")
+                    total_trades = db_bot.get("total_trades", 0)
+                    total_pnl = db_bot.get("total_pnl", 0.0)
+                    last_signal = db_bot.get("last_signal")
+                
+                user_bots.append(BotResponse(
+                    id=str(db_bot["_id"]),
+                    name=db_bot["name"],
+                    strategy=db_bot["strategy"],
+                    symbol=db_bot["symbol"],
+                    balance=db_bot["balance"],
+                    risk_per_trade=db_bot["risk_per_trade"],
+                    status=status,
+                    started_at=started_at,
+                    total_trades=total_trades,
+                    total_pnl=total_pnl,
+                    last_signal=last_signal
+                ))
+                logger.info(f"Successfully added bot: {db_bot['name']}")
+                
+            except Exception as bot_error:
+                logger.error(f"Error processing database bot {db_bot.get('_id', 'unknown')}: {bot_error}")
+                logger.error(f"Bot data: {db_bot}")
+                continue
         
         logger.info(f"Returning {len(user_bots)} bots for user {current_user.id}")
         return user_bots
@@ -195,6 +302,61 @@ async def get_user_bots(
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to get bots")
+
+@router.get("/bots/{bot_id}", response_model=Dict)
+async def get_bot_detail(
+    bot_id: str,
+    current_user: User = Depends(get_current_active_user),
+    trading_service: TradingService = Depends(get_trading_service)
+):
+    """Get detailed information about a specific bot."""
+    try:
+        logger.info(f"Getting bot detail for bot {bot_id} and user {current_user.id}")
+        
+        # Verify bot belongs to user
+        if not bot_id.startswith(f"bot_{current_user.id}_"):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get bot status
+        bot_status = trading_service.get_bot_status(bot_id)
+        if not bot_status:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        
+        # Get bot performance metrics
+        performance = trading_service.get_bot_performance(bot_id)
+        
+        # Get recent trades
+        recent_trades = trading_service.get_bot_trades(bot_id, limit=10)
+        
+        # Get current market data
+        market_data = await trading_service.get_market_data(bot_status["symbol"], "1h", 24)
+        
+        bot_detail = {
+            "id": bot_id,
+            "name": bot_status.get("name", bot_id),
+            "strategy": bot_status["strategy"].name if hasattr(bot_status["strategy"], 'name') else str(bot_status["strategy"]),
+            "symbol": bot_status["symbol"],
+            "balance": bot_status["balance"],
+            "risk_per_trade": bot_status["risk_per_trade"],
+            "status": bot_status["status"],
+            "started_at": bot_status["started_at"],
+            "total_trades": bot_status["total_trades"],
+            "total_pnl": bot_status["total_pnl"],
+            "last_signal": bot_status["last_signal"],
+            "performance": performance,
+            "recent_trades": recent_trades,
+            "market_data": market_data,
+            "current_position": trading_service.get_bot_position(bot_id)
+        }
+        
+        logger.info(f"Returning bot detail for {bot_id}")
+        return bot_detail
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting bot detail: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get bot detail")
 
 @router.get("/bots/{bot_id}", response_model=BotResponse)
 async def get_bot(
