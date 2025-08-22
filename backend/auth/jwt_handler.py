@@ -94,13 +94,24 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_current_active_user(current_user = Depends(get_current_user)):
     """Get the current active user."""
     # Check if status is active (handle both string and enum)
-    user_status = str(current_user.status) if hasattr(current_user.status, 'value') else str(current_user.status)
-    if user_status.lower() != "active":
+    if hasattr(current_user.status, 'value'):
+        user_status = current_user.status.value
+    else:
+        user_status = str(current_user.status)
+    
+    logger.info(f"Checking user status: {user_status} for user {current_user.id}")
+    logger.info(f"Status type: {type(current_user.status)}")
+    logger.info(f"Status value: {current_user.status}")
+    
+    if user_status.lower() == "active":
+        logger.info(f"User {current_user.id} is active")
+        return current_user
+    else:
+        logger.warning(f"User {current_user.id} is not active (status: {user_status})")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Inactive user (status: {user_status})"
         )
-    return current_user
 
 async def get_current_user_from_token(token: str):
     """Get user from JWT token string (for WebSocket authentication)."""

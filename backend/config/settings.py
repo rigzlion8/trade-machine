@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     paystack_public_key: str = ""
     
     # Crypto API settings
-    binance_api_key: str = ""
-    binance_secret_key: str = ""
+    BINANCE_API_KEY: str = ""
+    BINANCE_SECRET_KEY: str = ""
     coinbase_api_key: str = ""
     coinbase_secret_key: str = ""
     

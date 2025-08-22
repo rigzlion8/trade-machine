@@ -148,36 +148,43 @@ export class WalletService {
 
 export class BotService {
   static async getUserBots() {
-    const response = await api.get('/bots/')
+    const response = await api.get('/trading/bots')
     return response.data
   }
 
   static async createBot(botData: {
     name: string
     strategy: string
-    initial_capital: number
+    symbol: string
+    balance: number
+    risk_per_trade: number
   }) {
-    const response = await api.post('/bots/', botData)
+    const response = await api.post('/trading/bots', botData)
     return response.data
   }
 
   static async getBot(botId: string) {
-    const response = await api.get(`/bots/${botId}`)
+    const response = await api.get(`/trading/bots/${botId}`)
     return response.data
   }
 
   static async startBot(botId: string) {
-    const response = await api.put(`/bots/${botId}/start`)
+    const response = await api.post(`/trading/bots/${botId}/start`)
     return response.data
   }
 
   static async stopBot(botId: string) {
-    const response = await api.put(`/bots/${botId}/stop`)
+    const response = await api.post(`/trading/bots/${botId}/stop`)
     return response.data
   }
 
   static async deleteBot(botId: string) {
-    const response = await api.delete(`/bots/${botId}`)
+    const response = await api.delete(`/trading/bots/${botId}`)
+    return response.data
+  }
+
+  static async getAvailableStrategies() {
+    const response = await api.get('/trading/strategies')
     return response.data
   }
 }

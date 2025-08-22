@@ -14,6 +14,7 @@ from wallet.wallet_router import router as wallet_router
 from bots.bot_router import router as bot_router
 from payments.payment_router import router as payment_router
 from realtime.websocket_router import router as websocket_router
+from trading.trading_router import router as trading_router
 from auth.jwt_handler import create_access_token, get_current_user
 from models.user import User, UserCreate, UserResponse
 from models.wallet import Wallet, WalletCreate
@@ -45,6 +46,7 @@ app.include_router(wallet_router, prefix="/wallet", tags=["Wallet"])
 app.include_router(bot_router, prefix="/bots", tags=["Trading Bots"])
 app.include_router(payment_router, prefix="/payments", tags=["Payments"])
 app.include_router(websocket_router, tags=["WebSockets"])
+app.include_router(trading_router, tags=["Trading"])
 
 # Health check endpoint
 @app.get("/health")
