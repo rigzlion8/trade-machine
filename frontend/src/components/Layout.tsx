@@ -25,6 +25,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
     { name: 'My Bots', href: '/bots', icon: CogIcon },
+    { name: 'Strategies', href: '/strategies', icon: ChartBarIcon },
     { name: 'Wallet', href: '/wallet', icon: WalletIcon },
   ]
 

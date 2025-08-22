@@ -132,6 +132,16 @@ const BotList: React.FC = () => {
     });
   };
 
+  const getStrategyDisplayName = (strategyName: string) => {
+    const strategyNames: Record<string, string> = {
+      'MA_10_20': 'Moving Average Crossover',
+      'RSI_Strategy': 'RSI Mean Reversion',
+      'MACD_Strategy': 'MACD Momentum',
+      'Bollinger_Bands_Strategy': 'Bollinger Bands Volatility'
+    };
+    return strategyNames[strategyName] || strategyName;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -266,7 +276,7 @@ const BotList: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{bot.strategy}</div>
+                      <div className="text-sm text-gray-900">{getStrategyDisplayName(bot.strategy)}</div>
                       <div className="text-sm text-gray-500">{bot.total_trades} trades</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -365,7 +375,7 @@ const BotList: React.FC = () => {
                     <option value="">Select Strategy</option>
                     {strategies.map((strategy) => (
                       <option key={strategy.name} value={strategy.name}>
-                        {strategy.name}
+                        {getStrategyDisplayName(strategy.name)}
                       </option>
                     ))}
                   </select>
