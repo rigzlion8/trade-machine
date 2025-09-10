@@ -14,6 +14,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline'
 import PaymentService, { Payment, PaymentStats, BankAccount, Bank, PaymentFilters, ExchangeRates, MobileMoneyProvider } from '../services/paymentService'
+import CurrencyConverter from '../components/CurrencyConverter'
 import toast from 'react-hot-toast'
 
 export default function Payments() {
@@ -28,6 +29,7 @@ export default function Payments() {
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false)
   const [showAddBankModal, setShowAddBankModal] = useState(false)
+  const [showCurrencyConverter, setShowCurrencyConverter] = useState(false)
   const [filters, setFilters] = useState<PaymentFilters>({})
   
   // Form states
@@ -192,6 +194,17 @@ export default function Payments() {
     loadData()
   }
 
+  const refreshExchangeRates = async () => {
+    try {
+      const rates = await PaymentService.getExchangeRates()
+      setExchangeRates(rates)
+      toast.success('Exchange rates updated!')
+    } catch (error) {
+      console.error('Error refreshing rates:', error)
+      toast.error('Failed to refresh exchange rates')
+    }
+  }
+
   if (loading && payments.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -210,7 +223,14 @@ export default function Payments() {
             Manage your deposits, withdrawals, and payment history
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
+        <div className="mt-4 sm:mt-0 flex flex-wrap gap-3">
+          <button
+            onClick={() => setShowCurrencyConverter(!showCurrencyConverter)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <ChartBarIcon className="h-4 w-4 mr-2" />
+            Converter
+          </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -332,7 +352,7 @@ export default function Payments() {
           <div className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {Object.entries(exchangeRates.rates).map(([currency, rate]) => (
-                <div key={currency} className="text-center p-3 bg-gray-50 rounded-lg">
+                <div key={currency} className="text-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
                   <div className="text-sm font-medium text-gray-900">{currency}</div>
                   <div className="text-lg font-bold text-primary-600">
                     {rate.toFixed(4)}
@@ -341,8 +361,58 @@ export default function Payments() {
                 </div>
               ))}
             </div>
+            
+            {/* Quick Converter Widget */}
+            <div className="mt-6 p-4 bg-primary-50 rounded-lg">
+              <h4 className="text-sm font-medium text-primary-900 mb-3">Quick Convert</h4>
+              <div className="flex items-center space-x-3">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    placeholder="1000"
+                    className="w-full px-3 py-2 border border-primary-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    onChange={(e) => {
+                      const amount = parseFloat(e.target.value)
+                      if (amount && exchangeRates) {
+                        const usdAmount = (amount * exchangeRates.rates.USD).toFixed(2)
+                        const eurAmount = (amount * exchangeRates.rates.EUR).toFixed(2)
+                        const gbpAmount = (amount * exchangeRates.rates.GBP).toFixed(2)
+                        
+                        // Update the display
+                        const resultElement = document.getElementById('quick-convert-result')
+                        if (resultElement) {
+                          resultElement.innerHTML = `
+                            <div class="text-xs text-primary-700">
+                              ${amount.toLocaleString()} KES = 
+                              <span class="font-semibold">$${usdAmount}</span> USD, 
+                              <span class="font-semibold">€${eurAmount}</span> EUR, 
+                              <span class="font-semibold">£${gbpAmount}</span> GBP
+                            </div>
+                          `
+                        }
+                      } else {
+                        const resultElement = document.getElementById('quick-convert-result')
+                        if (resultElement) {
+                          resultElement.innerHTML = ''
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div className="text-sm text-primary-600 font-medium">KES</div>
+              </div>
+              <div id="quick-convert-result" className="mt-2"></div>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Currency Converter */}
+      {showCurrencyConverter && (
+        <CurrencyConverter 
+          exchangeRates={exchangeRates} 
+          onRefreshRates={refreshExchangeRates}
+        />
       )}
 
       {/* Filters */}
