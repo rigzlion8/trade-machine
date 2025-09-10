@@ -16,7 +16,7 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     try {
-      // Redirect to backend Google OAuth endpoint
+      // Redirect to backend Google OAuth endpoints
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
       const googleAuthUrl = `${API_BASE_URL}/auth/google/login`
       window.location.href = googleAuthUrl
