@@ -15,6 +15,8 @@ from auth.jwt_handler import (
 )
 from database.mongodb import get_collection, USERS_COLLECTION
 from config.settings import get_settings
+from services.email_service import email_service
+from services.verification_service import verification_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -55,9 +57,27 @@ async def register_user(user_data: UserCreate):
         
         # Insert user
         result = await users_collection.insert_one(new_user)
+        user_id = str(new_user["_id"])
+        
+        # Generate verification token and send email
+        try:
+            verification_token = await verification_service.generate_verification_token(user_id)
+            email_sent = await email_service.send_verification_email(
+                user_data.email, 
+                verification_token, 
+                user_data.full_name
+            )
+            
+            if email_sent:
+                logger.info(f"Verification email sent to {user_data.email}")
+            else:
+                logger.warning(f"Failed to send verification email to {user_data.email}")
+        except Exception as e:
+            logger.error(f"Error sending verification email: {e}")
+            # Don't fail registration if email sending fails
         
         # Convert to response model
-        new_user["id"] = str(new_user["_id"])
+        new_user["id"] = user_id
         del new_user["_id"]
         
         return UserResponse(**new_user)
@@ -69,6 +89,60 @@ async def register_user(user_data: UserCreate):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed"
+        )
+
+@router.post("/verify-email")
+async def verify_email(token: str):
+    """Verify user email with token."""
+    try:
+        # Verify the token
+        user_id = await verification_service.verify_token(token)
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification token"
+            )
+        
+        # Update user as verified
+        users_collection = await get_collection(USERS_COLLECTION)
+        result = await users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "is_email_verified": True,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Get user data for welcome email
+        user_data = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if user_data:
+            # Send welcome email
+            try:
+                await email_service.send_welcome_email(
+                    user_data["email"], 
+                    user_data["full_name"]
+                )
+            except Exception as e:
+                logger.error(f"Error sending welcome email: {e}")
+                # Don't fail verification if welcome email fails
+        
+        return {"message": "Email verified successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Email verification error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email verification failed"
         )
 
 @router.post("/login", response_model=UserLoginResponse)

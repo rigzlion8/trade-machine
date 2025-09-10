@@ -107,6 +107,13 @@ export class AuthService {
     return response.data
   }
 
+  static async verifyEmail(token: string) {
+    const response = await api.post('/auth/verify-email', null, {
+      params: { token }
+    })
+    return response.data
+  }
+
   static async logout() {
     const response = await api.post('/auth/logout')
     return response.data

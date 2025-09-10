@@ -17,6 +17,7 @@ const Wallet = lazy(() => import('./pages/Wallet'))
 const Crypto = lazy(() => import('./pages/Crypto'))
 const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
 const AuthError = lazy(() => import('./pages/AuthError'))
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 
 function App() {
   const isDevelopment = import.meta.env.DEV
@@ -36,6 +37,7 @@ function App() {
           <Route path="/crypto" element={<Crypto />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
           <Route path="/auth/error" element={<AuthError />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
         </Routes>
       </Suspense>
       
