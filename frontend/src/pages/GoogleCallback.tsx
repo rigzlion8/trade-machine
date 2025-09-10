@@ -13,6 +13,8 @@ export default function GoogleCallback() {
 
   useEffect(() => {
     const handleGoogleCallback = async () => {
+      console.log('GoogleCallback component loaded')
+      console.log('Search params:', Object.fromEntries(searchParams.entries()))
       try {
         // Check if we have direct tokens from backend redirect
         const accessToken = searchParams.get('access_token')
