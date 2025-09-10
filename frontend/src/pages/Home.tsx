@@ -17,9 +17,12 @@ export default function Home() {
     <div className="space-y-8">
       {/* Hero Section */}
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
-          Trade Machine
-        </h1>
+        <div className="flex items-center justify-center mb-4">
+          <img src="/logo-tm-transparent.svg" alt="TM" className="h-12 w-12 sm:h-16 sm:w-16 mr-3" />
+          <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
+            Trade Machine
+          </h1>
+        </div>
         <p className="mt-6 text-lg text-gray-600 max-w-3xl mx-auto">
           The smart crypto trading platform designed for the Kenyan market. 
           Trade with AI-powered bots and manage your money with our integrated mobile wallet.

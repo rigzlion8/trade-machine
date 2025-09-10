@@ -99,8 +99,10 @@ export default function Signup() {
       
       toast.success('Account created successfully! Please check your email to verify your account.')
       
-      // Redirect to login page
-      navigate('/login')
+      // Redirect to login page after a short delay to show the success message
+      setTimeout(() => {
+        navigate('/login')
+      }, 1500)
       
     } catch (error: any) {
       console.error('Signup failed:', error)
@@ -126,7 +128,10 @@ export default function Signup() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary-600 mb-2">Trade Machine</h1>
+          <div className="flex items-center justify-center mb-2">
+            <img src="/logo-tm-transparent.svg" alt="TM" className="h-8 w-8 mr-2" />
+            <h1 className="text-3xl font-bold text-primary-600">Trade Machine</h1>
+          </div>
           <h2 className="text-2xl font-bold text-gray-900">Create your account</h2>
           <p className="mt-2 text-sm text-gray-600">
             Or{' '}
