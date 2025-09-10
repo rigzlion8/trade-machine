@@ -21,9 +21,20 @@ export default function GoogleCallback() {
         
         if (accessToken && refreshToken && userId) {
           // Direct token flow - backend already processed the OAuth
-          const userData = {
+          const tokens = {
+            access_token: accessToken,
+            token_type: 'bearer',
+            refresh_token: refreshToken
+          }
+          
+          // Store tokens first
+          localStorage.setItem('access_token', accessToken)
+          localStorage.setItem('refresh_token', refreshToken)
+          
+          // Extract user info from JWT token
+          let userData = {
             id: userId,
-            email: '', // Will be fetched from user info
+            email: '',
             full_name: '',
             profile_picture: '',
             phone_number: '',
@@ -35,25 +46,28 @@ export default function GoogleCallback() {
             is_verified: true
           }
           
-          const tokens = {
-            access_token: accessToken,
-            token_type: 'bearer',
-            refresh_token: refreshToken
+          // Try to decode JWT token for user info
+          try {
+            const tokenPayload = JSON.parse(atob(accessToken.split('.')[1]))
+            userData.email = tokenPayload.email || ''
+            userData.full_name = tokenPayload.name || ''
+          } catch (e) {
+            console.warn('Could not decode JWT token:', e)
           }
           
-          // Get user info from backend
+          // Try to get complete user info from backend (optional)
           try {
             const userResponse = await AuthService.getCurrentUser()
-            userData.email = userResponse.email
-            userData.full_name = userResponse.full_name
-            userData.profile_picture = userResponse.profile_picture
-            userData.phone_number = userResponse.phone_number
+            userData.email = userResponse.email || userData.email
+            userData.full_name = userResponse.full_name || userData.full_name
+            userData.profile_picture = userResponse.profile_picture || userData.profile_picture
+            userData.phone_number = userResponse.phone_number || userData.phone_number
             userData.wallet_balance_kes = userResponse.wallet_balance_kes || 0
             userData.wallet_balance_usdt = userResponse.wallet_balance_usdt || 0
             userData.wallet_status = userResponse.status || 'active'
-            userData.is_verified = userResponse.is_email_verified || false
+            userData.is_verified = userResponse.is_email_verified || true
           } catch (userError) {
-            console.warn('Could not fetch user details:', userError)
+            console.warn('Could not fetch user details from backend, using JWT data:', userError)
           }
           
           login(userData, tokens)
