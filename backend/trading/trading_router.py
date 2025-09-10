@@ -9,6 +9,9 @@ from auth.jwt_handler import get_current_active_user
 from models.user import User
 from .trading_service import TradingService
 from .strategies.moving_average_strategy import MovingAverageStrategy
+from .strategies.rsi_strategy import RSIStrategy
+from .strategies.macd_strategy import MACDStrategy
+from .strategies.bollinger_bands_strategy import BollingerBandsStrategy
 from .exchanges.binance_client import BinanceClient
 from config.settings import get_settings
 from database.mongodb import get_collection
@@ -41,8 +44,8 @@ class BotResponse(BaseModel):
 
 class StrategyResponse(BaseModel):
     name: str
-    symbol: str
-    timeframe: str
+    symbol: Optional[str] = None
+    timeframe: Optional[str] = None
     parameters: Dict
     performance: Dict
 
@@ -125,11 +128,20 @@ def get_trading_service() -> TradingService:
             trading_service = TradingService(binance_client)
             logger.info("TradingService instance created")
             
-            # Add default strategies
+            # Add all strategies
             ma_strategy = MovingAverageStrategy("BTCUSDT", "1h", 10, 20)
             trading_service.add_strategy(ma_strategy)
-            logger.info("Default strategy added")
             
+            rsi_strategy = RSIStrategy()
+            trading_service.add_strategy(rsi_strategy)
+            
+            macd_strategy = MACDStrategy()
+            trading_service.add_strategy(macd_strategy)
+            
+            bb_strategy = BollingerBandsStrategy()
+            trading_service.add_strategy(bb_strategy)
+            
+            logger.info(f"Added {len(trading_service.strategies)} strategies: {list(trading_service.strategies.keys())}")
             logger.info("Trading service initialized successfully")
             
         except Exception as e:
@@ -137,28 +149,26 @@ def get_trading_service() -> TradingService:
             logger.error(f"Exception type: {type(e)}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            # Return a minimal trading service to prevent crashes
-            try:
-                from .trading_service import TradingService
-                from .exchanges.binance_client import BinanceClient
-                from .strategies.moving_average_strategy import MovingAverageStrategy
-                
-                dummy_client = BinanceClient("", "", testnet=True)
-                trading_service = TradingService(dummy_client)
-                
-                # Add a default strategy to the fallback service
-                ma_strategy = MovingAverageStrategy("BTCUSDT", "1h", 10, 20)
-                trading_service.add_strategy(ma_strategy)
-                logger.info("Default strategy added to fallback service")
-                
-            except Exception as fallback_error:
-                logger.error(f"Failed to create fallback trading service: {fallback_error}")
-                # Create a minimal service without strategies
-                from .trading_service import TradingService
-                from .exchanges.binance_client import BinanceClient
-                dummy_client = BinanceClient("", "", testnet=True)
-                trading_service = TradingService(dummy_client)
             
+            # Create a minimal service with all strategies even if Binance fails
+            logger.info("Creating trading service with dummy Binance client...")
+            dummy_client = BinanceClient("", "", testnet=True)
+            trading_service = TradingService(dummy_client)
+            
+            # Add all strategies to the fallback service
+            ma_strategy = MovingAverageStrategy("BTCUSDT", "1h", 10, 20)
+            trading_service.add_strategy(ma_strategy)
+            
+            rsi_strategy = RSIStrategy()
+            trading_service.add_strategy(rsi_strategy)
+            
+            macd_strategy = MACDStrategy()
+            trading_service.add_strategy(macd_strategy)
+            
+            bb_strategy = BollingerBandsStrategy()
+            trading_service.add_strategy(bb_strategy)
+            
+            logger.info(f"Fallback service created with {len(trading_service.strategies)} strategies: {list(trading_service.strategies.keys())}")
             logger.warning("Using fallback trading service")
     else:
         logger.info("Using existing trading service instance")
@@ -651,8 +661,8 @@ async def get_available_strategies(
                 
                 strategies.append(StrategyResponse(
                     name=strategy.name,
-                    symbol=strategy.symbol,
-                    timeframe=strategy.timeframe,
+                    symbol=getattr(strategy, 'symbol', None),
+                    timeframe=getattr(strategy, 'timeframe', None),
                     parameters=strategy.parameters,
                     performance=performance
                 ))
