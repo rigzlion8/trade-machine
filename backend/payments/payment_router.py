@@ -1,45 +1,43 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, status, Depends, Query
+from typing import Optional, List
 import logging
 from datetime import datetime
-from bson import ObjectId
-import uuid
 
-from models.user import User
-from auth.jwt_handler import get_current_active_user
-from database.mongodb import get_collection, TRANSACTIONS_COLLECTION, WALLETS_COLLECTION
+from models.payment import (
+    PaymentCreate, PaymentResponse, PaymentUpdate, PaymentFilter, 
+    PaymentStats, BankAccountCreate, BankAccountResponse
+)
+from services.payment_service import payment_service
 from payments.paystack_service import paystack_service
-from payments.mpesa_service import mpesa_service
-from config.settings import get_settings
+from auth.jwt_handler import get_current_active_user
+from models.user import User
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
-
 router = APIRouter()
 
-@router.post("/deposit/paystack")
-async def initiate_paystack_deposit(
+@router.post("/deposit/initialize", response_model=dict)
+async def initialize_deposit(
     amount: float,
-    callback_url: str,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Initiate a Paystack deposit."""
+    """Initialize a deposit transaction."""
     try:
+        if amount <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Amount must be greater than 0"
+            )
+        
         if amount < 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Minimum deposit amount is KES 100"
             )
         
-        # Generate unique reference
-        reference = f"DEP{datetime.utcnow().strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
-        
-        # Initialize Paystack transaction
-        result = await paystack_service.initialize_transaction(
+        result = await payment_service.initialize_deposit(
+            user_id=str(current_user.id),
             amount=amount,
-            email=current_user.email,
-            reference=reference,
-            callback_url=callback_url
+            email=current_user.email
         )
         
         if not result["success"]:
@@ -48,164 +46,55 @@ async def initiate_paystack_deposit(
                 detail=result["error"]
             )
         
-        # Create pending transaction record
-        transaction = {
-            "_id": ObjectId(),
-            "user_id": current_user.id,
-            "transaction_type": "paystack_deposit",
-            "amount": amount,
-            "currency": "KES",
-            "reference": reference,
-            "status": "pending",
-            "gateway": "paystack",
-            "gateway_ref": result["reference"],
-            "created_at": datetime.utcnow(),
-            "metadata": {
-                "authorization_url": result["authorization_url"],
-                "access_code": result["access_code"]
-            }
-        }
-        
-        transactions_collection = await get_collection(TRANSACTIONS_COLLECTION)
-        await transactions_collection.insert_one(transaction)
-        
         return {
-            "success": True,
+            "message": "Deposit initialized successfully",
+            "payment_id": result["payment_id"],
+            "reference": result["reference"],
             "authorization_url": result["authorization_url"],
-            "reference": reference,
-            "amount": amount
+            "fees": result["fees"],
+            "net_amount": result["net_amount"]
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error initiating Paystack deposit: {e}")
+        logger.error(f"Error initializing deposit: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initiate deposit"
+            detail="Failed to initialize deposit"
         )
 
-@router.post("/deposit/mpesa")
-async def initiate_mpesa_deposit(
+@router.post("/withdrawal/initialize", response_model=dict)
+async def initialize_withdrawal(
     amount: float,
-    phone_number: str,
+    bank_account_id: str,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Initiate an M-Pesa deposit."""
+    """Initialize a withdrawal transaction."""
     try:
-        if amount < 10:
+        if amount <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Minimum M-Pesa deposit amount is KES 10"
+                detail="Amount must be greater than 0"
             )
         
-        if amount > 70000:
+        if amount < 500:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum M-Pesa deposit amount is KES 70,000"
+                detail="Minimum withdrawal amount is KES 500"
             )
         
-        # Generate unique reference
-        reference = f"MPESA{datetime.utcnow().strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
-        
-        # Initiate M-Pesa STK push
-        result = await mpesa_service.stk_push(
-            phone_number=phone_number,
-            amount=amount,
-            reference=reference,
-            description="Wallet deposit"
-        )
-        
-        if not result["success"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-        
-        # Create pending transaction record
-        transaction = {
-            "_id": ObjectId(),
-            "user_id": current_user.id,
-            "transaction_type": "mpesa_deposit",
-            "amount": amount,
-            "currency": "KES",
-            "reference": reference,
-            "status": "pending",
-            "gateway": "mpesa",
-            "gateway_ref": result["CheckoutRequestID"],
-            "created_at": datetime.utcnow(),
-            "metadata": {
-                "phone_number": phone_number,
-                "merchant_request_id": result["MerchantRequestID"]
-            }
-        }
-        
-        transactions_collection = await get_collection(TRANSACTIONS_COLLECTION)
-        await transactions_collection.insert_one(transaction)
-        
-        return {
-            "success": True,
-            "reference": reference,
-            "amount": amount,
-            "message": "STK push sent to your phone. Please check and enter M-Pesa PIN to complete."
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error initiating M-Pesa deposit: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initiate M-Pesa deposit"
-        )
-
-@router.post("/withdraw/mpesa")
-async def initiate_mpesa_withdrawal(
-    amount: float,
-    phone_number: str,
-    pin: str,
-    current_user: User = Depends(get_current_active_user)
-):
-    """Initiate an M-Pesa withdrawal."""
-    try:
-        # Validate wallet PIN (you'd implement this)
-        # if not verify_wallet_pin(current_user.id, pin):
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail="Invalid wallet PIN"
-        #     )
-        
-        if amount < 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Minimum withdrawal amount is KES 10"
-            )
-        
-        if amount > 70000:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum withdrawal amount is KES 70,000"
-            )
-        
-        # Check wallet balance
-        wallets_collection = await get_collection(WALLETS_COLLECTION)
-        wallet = await wallets_collection.find_one({"user_id": current_user.id})
-        
-        if not wallet or wallet.get("balance_kes", 0) < amount:
+        # Check if user has sufficient balance
+        if current_user.wallet_balance_kes < amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Insufficient wallet balance"
             )
         
-        # Generate unique reference
-        reference = f"WTH{datetime.utcnow().strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
-        
-        # Initiate M-Pesa B2C payment
-        result = await mpesa_service.b2c_payment(
-            phone_number=phone_number,
+        result = await payment_service.initialize_withdrawal(
+            user_id=str(current_user.id),
             amount=amount,
-            reference=reference,
-            description="Wallet withdrawal"
+            bank_account_id=bank_account_id
         )
         
         if not result["success"]:
@@ -214,55 +103,113 @@ async def initiate_mpesa_withdrawal(
                 detail=result["error"]
             )
         
-        # Create pending transaction record
-        transaction = {
-            "_id": ObjectId(),
-            "user_id": current_user.id,
-            "transaction_type": "mpesa_withdrawal",
-            "amount": amount,
-            "currency": "KES",
-            "reference": reference,
-            "status": "pending",
-            "gateway": "mpesa",
-            "gateway_ref": result["ConversationID"],
-            "created_at": datetime.utcnow(),
-            "metadata": {
-                "phone_number": phone_number,
-                "conversation_id": result["ConversationID"]
-            }
-        }
-        
-        transactions_collection = await get_collection(TRANSACTIONS_COLLECTION)
-        await transactions_collection.insert_one(transaction)
-        
-        # Deduct amount from wallet (will be reversed if withdrawal fails)
-        await wallets_collection.update_one(
-            {"user_id": current_user.id},
-            {
-                "$inc": {"balance_kes": -amount},
-                "$set": {"updated_at": datetime.utcnow()}
-            }
-        )
-        
         return {
-            "success": True,
-            "reference": reference,
-            "amount": amount,
-            "message": "Withdrawal initiated. You will receive an SMS confirmation."
+            "message": "Withdrawal initialized successfully",
+            "payment_id": result["payment_id"],
+            "reference": result["reference"],
+            "transfer_code": result["transfer_code"],
+            "fees": result["fees"],
+            "net_amount": result["net_amount"]
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error initiating M-Pesa withdrawal: {e}")
+        logger.error(f"Error initializing withdrawal: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initiate withdrawal"
+            detail="Failed to initialize withdrawal"
+        )
+
+@router.post("/verify/{reference}")
+async def verify_payment(reference: str):
+    """Verify a payment transaction."""
+    try:
+        result = await payment_service.verify_payment(reference)
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+        
+        return {
+            "message": "Payment verified successfully",
+            "status": result["status"],
+            "amount": result["amount"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying payment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify payment"
+        )
+
+@router.get("/history", response_model=List[PaymentResponse])
+async def get_payment_history(
+    payment_type: Optional[str] = Query(None),
+    payment_method: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    search: Optional[str] = Query(None),
+    limit: int = Query(50, le=100),
+    skip: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get user payment history with filters."""
+    try:
+        filters = PaymentFilter(
+            payment_type=payment_type,
+            payment_method=payment_method,
+            status=status,
+            start_date=start_date,
+            end_date=end_date,
+            min_amount=min_amount,
+            max_amount=max_amount,
+            search=search
+        )
+        
+        payments = await payment_service.get_user_payments(
+            user_id=str(current_user.id),
+            filters=filters,
+            limit=limit,
+            skip=skip
+        )
+        
+        return payments
+        
+    except Exception as e:
+        logger.error(f"Error getting payment history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get payment history"
+        )
+
+@router.get("/stats", response_model=PaymentStats)
+async def get_payment_stats(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get payment statistics for user."""
+    try:
+        stats = await payment_service.get_payment_stats(str(current_user.id))
+        return stats
+        
+    except Exception as e:
+        logger.error(f"Error getting payment stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get payment statistics"
         )
 
 @router.get("/banks")
 async def get_supported_banks():
-    """Get list of supported banks for transfers."""
+    """Get list of supported banks."""
     try:
         result = await paystack_service.get_banks()
         
@@ -273,7 +220,6 @@ async def get_supported_banks():
             )
         
         return {
-            "success": True,
             "banks": result["banks"]
         }
         
@@ -283,18 +229,17 @@ async def get_supported_banks():
         logger.error(f"Error getting banks: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get banks"
+            detail="Failed to get supported banks"
         )
 
-@router.post("/verify/paystack")
-async def verify_paystack_transaction(
-    reference: str,
-    current_user: User = Depends(get_current_active_user)
+@router.post("/banks/resolve")
+async def resolve_account_number(
+    account_number: str,
+    bank_code: str
 ):
-    """Verify a Paystack transaction."""
+    """Resolve account number to get account name."""
     try:
-        # Verify with Paystack
-        result = await paystack_service.verify_transaction(reference)
+        result = await paystack_service.resolve_account_number(account_number, bank_code)
         
         if not result["success"]:
             raise HTTPException(
@@ -302,73 +247,196 @@ async def verify_paystack_transaction(
                 detail=result["error"]
             )
         
-        # Update transaction status
-        transactions_collection = await get_collection(TRANSACTIONS_COLLECTION)
-        transaction = await transactions_collection.find_one({"reference": reference})
-        
-        if not transaction:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Transaction not found"
-            )
-        
-        if transaction["user_id"] != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to verify this transaction"
-            )
-        
-        # Update transaction
-        await transactions_collection.update_one(
-            {"reference": reference},
-            {
-                "$set": {
-                    "status": "completed",
-                    "completed_at": datetime.utcnow(),
-                    "gateway_ref": result["gateway_ref"]
-                }
-            }
-        )
-        
-        # Credit user's wallet
-        wallets_collection = await get_collection(WALLETS_COLLECTION)
-        await wallets_collection.update_one(
-            {"user_id": current_user.id},
-            {
-                "$inc": {"balance_kes": result["amount_kes"]},
-                "$set": {"updated_at": datetime.utcnow()}
-            }
-        )
-        
         return {
-            "success": True,
-            "message": "Deposit completed successfully",
-            "amount_kes": result["amount_kes"],
-            "reference": reference
+            "account_number": result["account_number"],
+            "account_name": result["account_name"],
+            "bank_id": result["bank_id"]
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error verifying Paystack transaction: {e}")
+        logger.error(f"Error resolving account: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to verify transaction"
+            detail="Failed to resolve account number"
         )
 
-@router.post("/callback/mpesa")
-async def mpesa_callback(callback_data: Dict[str, Any]):
-    """Handle M-Pesa callback."""
+@router.post("/bank-accounts", response_model=BankAccountResponse)
+async def add_bank_account(
+    bank_account: BankAccountCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Add a bank account for withdrawals."""
     try:
-        # This would handle M-Pesa webhook callbacks
-        # For now, just log the data
-        logger.info(f"M-Pesa callback received: {callback_data}")
+        # Resolve account number first
+        resolve_result = await paystack_service.resolve_account_number(
+            bank_account.account_number,
+            bank_account.bank_code
+        )
         
-        return {"success": True, "message": "Callback received"}
+        if not resolve_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=resolve_result["error"]
+            )
         
+        # Get bank name
+        banks_result = await paystack_service.get_banks()
+        bank_name = "Unknown Bank"
+        if banks_result["success"]:
+            for bank in banks_result["banks"]:
+                if bank["code"] == bank_account.bank_code:
+                    bank_name = bank["name"]
+                    break
+        
+        # Create bank account record
+        from database.mongodb import get_collection
+        from bson import ObjectId
+        
+        bank_accounts_collection = await get_collection("bank_accounts")
+        
+        # Check if account already exists
+        existing = await bank_accounts_collection.find_one({
+            "user_id": ObjectId(current_user.id),
+            "account_number": bank_account.account_number,
+            "bank_code": bank_account.bank_code
+        })
+        
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bank account already exists"
+            )
+        
+        # Create new bank account
+        bank_account_doc = {
+            "_id": ObjectId(),
+            "user_id": ObjectId(current_user.id),
+            "account_number": bank_account.account_number,
+            "bank_code": bank_account.bank_code,
+            "bank_name": bank_name,
+            "account_name": resolve_result["account_name"],
+            "is_verified": True,
+            "is_default": False,
+            "recipient_code": None,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        result = await bank_accounts_collection.insert_one(bank_account_doc)
+        
+        # Convert to response
+        bank_account_doc["id"] = str(bank_account_doc["_id"])
+        del bank_account_doc["_id"]
+        del bank_account_doc["recipient_code"]
+        
+        return BankAccountResponse(**bank_account_doc)
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error processing M-Pesa callback: {e}")
+        logger.error(f"Error adding bank account: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process callback"
+            detail="Failed to add bank account"
+        )
+
+@router.get("/bank-accounts", response_model=List[BankAccountResponse])
+async def get_bank_accounts(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get user's bank accounts."""
+    try:
+        from database.mongodb import get_collection
+        from bson import ObjectId
+        
+        bank_accounts_collection = await get_collection("bank_accounts")
+        cursor = bank_accounts_collection.find({
+            "user_id": ObjectId(current_user.id)
+        }).sort("created_at", -1)
+        
+        bank_accounts = await cursor.to_list(length=None)
+        
+        result = []
+        for account in bank_accounts:
+            account["id"] = str(account["_id"])
+            del account["_id"]
+            if "recipient_code" in account:
+                del account["recipient_code"]
+            result.append(BankAccountResponse(**account))
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting bank accounts: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get bank accounts"
+        )
+
+@router.delete("/bank-accounts/{account_id}")
+async def delete_bank_account(
+    account_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a bank account."""
+    try:
+        from database.mongodb import get_collection
+        from bson import ObjectId
+        
+        bank_accounts_collection = await get_collection("bank_accounts")
+        
+        result = await bank_accounts_collection.delete_one({
+            "_id": ObjectId(account_id),
+            "user_id": ObjectId(current_user.id)
+        })
+        
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bank account not found"
+            )
+        
+        return {"message": "Bank account deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting bank account: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete bank account"
+        )
+
+@router.post("/webhook")
+async def handle_payment_webhook(webhook_data: dict):
+    """Handle Paystack webhook notifications."""
+    try:
+        event = webhook_data.get("event")
+        data = webhook_data.get("data", {})
+        
+        if event == "charge.success":
+            reference = data.get("reference")
+            if reference:
+                await payment_service.verify_payment(reference)
+        
+        elif event == "transfer.success":
+            transfer_code = data.get("transfer_code")
+            if transfer_code:
+                # Update withdrawal status
+                from database.mongodb import get_collection
+                payments_collection = await get_collection("payments")
+                await payments_collection.update_one(
+                    {"gateway_reference": transfer_code},
+                    {"$set": {"status": "completed", "completed_at": datetime.utcnow()}}
+                )
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        logger.error(f"Error handling webhook: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Webhook processing failed"
         )

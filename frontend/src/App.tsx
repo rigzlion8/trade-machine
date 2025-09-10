@@ -15,6 +15,7 @@ const BotDetail = lazy(() => import('./pages/BotDetail'))
 const Strategies = lazy(() => import('./pages/Strategies'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const Crypto = lazy(() => import('./pages/Crypto'))
+const Payments = lazy(() => import('./pages/Payments'))
 const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
 const AuthError = lazy(() => import('./pages/AuthError'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
@@ -35,6 +36,7 @@ function App() {
           <Route path="/strategies" element={<Strategies />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/crypto" element={<Crypto />} />
+          <Route path="/payments" element={<Payments />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
           <Route path="/auth/error" element={<AuthError />} />
           <Route path="/verify-email" element={<VerifyEmail />} />

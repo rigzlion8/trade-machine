@@ -6,6 +6,7 @@ import {
   CogIcon, 
   WalletIcon,
   CurrencyDollarIcon,
+  CreditCardIcon,
   UserIcon,
   Bars3Icon,
   XMarkIcon
@@ -29,6 +30,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Strategies', href: '/strategies', icon: ChartBarIcon },
     { name: 'Wallet', href: '/wallet', icon: WalletIcon },
     { name: 'Crypto', href: '/crypto', icon: CurrencyDollarIcon },
+    { name: 'Payments', href: '/payments', icon: CreditCardIcon },
   ]
 
   const isActive = (path: string) => location.pathname === path
