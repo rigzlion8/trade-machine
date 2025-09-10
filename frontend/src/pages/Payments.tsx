@@ -91,9 +91,7 @@ export default function Payments() {
         }
       }
 
-      console.log('Deposit request:', { amount, depositMethod, phoneNumber })
       const result = await PaymentService.initializeDeposit(amount, depositMethod, phoneNumber)
-      console.log('Deposit response:', result)
       
       if (result.authorization_url) {
         // Redirect to Paystack payment page

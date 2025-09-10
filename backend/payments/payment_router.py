@@ -170,7 +170,7 @@ async def verify_payment(reference: str):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result["error"]
-            )
+        )
         
         return {
             "message": "Payment verified successfully",
@@ -567,7 +567,7 @@ async def get_mobile_money_providers():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result["error"]
-            )
+        )
         
         return {
             "providers": result["providers"]

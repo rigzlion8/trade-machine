@@ -341,109 +341,109 @@ const BotList: React.FC = () => {
 
             {/* Desktop table */}
             <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bot
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Strategy
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Symbol
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Balance
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      P&L
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {bots.map((bot) => (
-                    <tr key={bot.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{bot.name}</div>
-                          <div className="text-sm text-gray-500">Started {formatDate(bot.started_at)}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{getStrategyDisplayName(bot.strategy)}</div>
-                        <div className="text-sm text-gray-500">{bot.total_trades} trades</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {bot.symbol}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(bot.balance)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          bot.status === 'running' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {bot.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`text-sm font-medium ${
-                          bot.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {formatCurrency(bot.total_pnl)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          {bot.status === 'running' ? (
-                            <button
-                              onClick={() => handleStopBot(bot.id)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Stop Bot"
-                            >
-                              <StopIcon className="h-5 w-5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleStartBot(bot.id)}
-                              className="text-green-600 hover:text-green-900"
-                              title="Start Bot"
-                            >
-                              <PlayIcon className="h-5 w-5" />
-                            </button>
-                          )}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bot
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Strategy
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Symbol
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Balance
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    P&L
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {bots.map((bot) => (
+                  <tr key={bot.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{bot.name}</div>
+                        <div className="text-sm text-gray-500">Started {formatDate(bot.started_at)}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{getStrategyDisplayName(bot.strategy)}</div>
+                      <div className="text-sm text-gray-500">{bot.total_trades} trades</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {bot.symbol}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(bot.balance)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        bot.status === 'running' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {bot.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-medium ${
+                        bot.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {formatCurrency(bot.total_pnl)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        {bot.status === 'running' ? (
                           <button
-                            onClick={() => navigate(`/bots/${bot.id}`)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="View Details"
-                          >
-                            <EyeIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBot(bot.id)}
+                            onClick={() => handleStopBot(bot.id)}
                             className="text-red-600 hover:text-red-900"
-                            title="Delete Bot"
+                            title="Stop Bot"
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <StopIcon className="h-5 w-5" />
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        ) : (
+                          <button
+                            onClick={() => handleStartBot(bot.id)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Start Bot"
+                          >
+                            <PlayIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => navigate(`/bots/${bot.id}`)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="View Details"
+                        >
+                          <EyeIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBot(bot.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete Bot"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           </>
         )}
       </div>
