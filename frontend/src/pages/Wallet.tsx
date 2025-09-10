@@ -19,7 +19,7 @@ import CryptoTransfer from '../components/CryptoTransfer'
 import TransferModal from '../components/TransferModal'
 import { WalletService } from '../services/api'
 import { cryptoWalletService, CryptoWallet } from '../services/cryptoWallet'
-import { initializeWebSocket, getWebSocketService, disconnectWebSocket } from '../services/websocket'
+import { useWebSocket } from '../hooks/useWebSocket'
 import toast from 'react-hot-toast'
 
 export default function Wallet() {
@@ -36,62 +36,35 @@ export default function Wallet() {
   const [walletData, setWalletData] = useState<any>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [wsConnected, setWsConnected] = useState(false)
   const [cryptoWallet, setCryptoWallet] = useState<CryptoWallet | null>(null)
+  
+  // Use optimized WebSocket hook
+  const { status: wsStatus, subscribeToTransactions, getWalletStatus } = useWebSocket({
+    autoConnect: true,
+    callbacks: {
+      onBalanceUpdate: (data) => {
+        // Update wallet data when balance changes
+        loadWalletData()
+      },
+      onTransactionNotification: (data) => {
+        // Refresh transactions when new transaction arrives
+        loadTransactions()
+      }
+    }
+  })
 
   useEffect(() => {
     if (user) {
       loadWalletData()
       loadTransactions()
       
-      // Initialize WebSocket connection for real-time updates
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        const wsService = initializeWebSocket(
-          (import.meta as any).env.VITE_API_URL || 'http://localhost:8000',
-          token,
-          user.id,
-          {
-            onBalanceUpdate: (data) => {
-              // Update wallet data in real-time
-              setWalletData(prev => ({
-                ...prev,
-                balance_kes: data.balance_kes,
-                balance_usdt: data.balance_usdt
-              }))
-            },
-            onTransactionNotification: (data) => {
-              // Add new transaction to the list
-              if (data.transaction) {
-                setTransactions(prev => [data.transaction, ...prev.slice(0, 9)])
-              }
-            },
-            onConnectionEstablished: (data) => {
-              console.log('WebSocket connected:', data)
-              setWsConnected(true)
-              // Subscribe to transaction updates
-              const ws = getWebSocketService()
-              if (ws) {
-                ws.subscribeToTransactions()
-              }
-            },
-            onDisconnect: () => {
-              console.log('WebSocket disconnected')
-              setWsConnected(false)
-            }
-          }
-        )
-        
-        // Connect to WebSocket
-        wsService.connect()
+      // Subscribe to transactions when WebSocket is connected
+      if (wsStatus.isConnected) {
+        subscribeToTransactions()
+        getWalletStatus()
       }
     }
-    
-    // Cleanup WebSocket on unmount
-    return () => {
-      disconnectWebSocket()
-    }
-  }, [user])
+  }, [user, wsStatus.isConnected, subscribeToTransactions, getWalletStatus])
 
   const loadWalletData = async () => {
     try {
@@ -210,10 +183,13 @@ export default function Wallet() {
             <p className="text-primary-100">Manage your money securely</p>
             {/* Real-time Connection Status */}
             <div className="flex items-center mt-2">
-              <div className={`w-2 h-2 rounded-full mr-2 ${wsConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <div className={`w-2 h-2 rounded-full mr-2 ${wsStatus.isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
               <span className="text-xs text-primary-200">
-                {wsConnected ? 'Live Updates Connected' : 'Connecting...'}
+                {wsStatus.isConnected ? 'Live Updates Connected' : 'Connecting...'}
               </span>
+              {wsStatus.isConnected && (
+                <div className={`w-2 h-2 rounded-full ml-2 ${wsStatus.isHealthy ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -607,3 +583,4 @@ export default function Wallet() {
     </div>
   )
 }
+

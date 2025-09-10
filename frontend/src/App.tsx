@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import Layout from './components/Layout'
 import LoadingSpinner from './components/LoadingSpinner'
+import ConnectionPoolMonitor from './components/ConnectionPoolMonitor'
 
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'))
@@ -16,6 +17,8 @@ const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
 const AuthError = lazy(() => import('./pages/AuthError'))
 
 function App() {
+  const isDevelopment = import.meta.env.DEV
+
   return (
     <Layout>
       <Suspense fallback={<LoadingSpinner />}>
@@ -31,6 +34,9 @@ function App() {
           <Route path="/auth/error" element={<AuthError />} />
         </Routes>
       </Suspense>
+      
+      {/* Show connection pool monitor in development */}
+      {isDevelopment && <ConnectionPoolMonitor show={true} />}
     </Layout>
   )
 }

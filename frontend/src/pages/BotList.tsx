@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PlusIcon, PlayIcon, StopIcon, TrashIcon, ChartBarIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { BotService } from '../services/api';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Bot {
   id: string;
@@ -32,6 +33,21 @@ const BotList: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Use optimized WebSocket hook for real-time bot updates
+  const { status: wsStatus } = useWebSocket({
+    autoConnect: true,
+    callbacks: {
+      onBotStatusUpdate: (data) => {
+        // Update bot status in real-time
+        if (data.bot) {
+          setBots(prev => prev.map(bot => 
+            bot.id === data.bot.id ? { ...bot, ...data.bot } : bot
+          ))
+        }
+      }
+    }
+  });
   const [newBot, setNewBot] = useState({
     name: '',
     strategy: '',
