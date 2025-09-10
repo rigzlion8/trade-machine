@@ -43,6 +43,7 @@ export default function Payments() {
     bank_code: '',
     account_name: ''
   })
+  const [bankSearchTerm, setBankSearchTerm] = useState('')
 
   useEffect(() => {
     loadData()
@@ -155,6 +156,7 @@ export default function Payments() {
       toast.success('Bank account added successfully!')
       setShowAddBankModal(false)
       setNewBankAccount({ account_number: '', bank_code: '', account_name: '' })
+      setBankSearchTerm('')
       loadData()
     } catch (error: any) {
       console.error('Add bank account error:', error)
@@ -204,6 +206,11 @@ export default function Payments() {
       toast.error('Failed to refresh exchange rates')
     }
   }
+
+  const filteredBanks = banks.filter(bank => 
+    bank.name.toLowerCase().includes(bankSearchTerm.toLowerCase()) ||
+    bank.code.toLowerCase().includes(bankSearchTerm.toLowerCase())
+  )
 
   if (loading && payments.length === 0) {
     return (
@@ -769,18 +776,37 @@ export default function Payments() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Bank
                 </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search for a Kenyan bank..."
+                    value={bankSearchTerm}
+                    onChange={(e) => setBankSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
+                  />
+                  <div className="absolute right-3 top-2 text-gray-400">
+                    🔍
+                  </div>
+                </div>
                 <select
                   value={newBankAccount.bank_code}
                   onChange={(e) => setNewBankAccount({ ...newBankAccount, bank_code: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  size={Math.min(filteredBanks.length + 1, 8)}
                 >
                   <option value="">Select bank</option>
-                  {banks.map((bank) => (
+                  {filteredBanks.map((bank) => (
                     <option key={bank.code} value={bank.code}>
-                      {bank.name}
+                      {bank.name} ({bank.code})
                     </option>
                   ))}
                 </select>
+                {filteredBanks.length === 0 && bankSearchTerm && (
+                  <p className="text-sm text-gray-500 mt-1">No banks found matching "{bankSearchTerm}"</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  🇰🇪 Showing {filteredBanks.length} Kenyan banks
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -791,12 +817,19 @@ export default function Payments() {
                   value={newBankAccount.account_number}
                   onChange={(e) => setNewBankAccount({ ...newBankAccount, account_number: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Enter account number"
+                  placeholder="Enter 10-15 digit account number"
+                  maxLength={15}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Kenyan account numbers are typically 10-15 digits
+                </p>
               </div>
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={() => setShowAddBankModal(false)}
+                  onClick={() => {
+                    setShowAddBankModal(false)
+                    setBankSearchTerm('')
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
