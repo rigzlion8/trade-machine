@@ -17,7 +17,8 @@ export default function Login() {
     setIsLoading(true)
     try {
       // Redirect to backend Google OAuth endpoint
-      const googleAuthUrl = 'http://localhost:8000/auth/google/login'
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const googleAuthUrl = `${API_BASE_URL}/auth/google/login`
       window.location.href = googleAuthUrl
     } catch (error) {
       console.error('Google login failed:', error)

@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, List
 import os
+import json
 
 class Settings(BaseSettings):
     # App settings
@@ -44,12 +46,26 @@ class Settings(BaseSettings):
     sender_email: str = "noreply@trademachine.com"
     
     # Security settings
-    cors_origins: list = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "https://yourdomain.com"
-    ]
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:5174,https://trade-machine.vercel.app"
+    
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def validate_cors_origins(cls, v):
+        """Validate and clean CORS origins"""
+        if v is None or v == "":
+            return "http://localhost:3000,http://localhost:5173,http://localhost:5174,https://trade-machine.vercel.app"
+        if isinstance(v, str):
+            return v
+        if isinstance(v, list):
+            return ",".join(v)
+        return str(v)
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Get CORS origins as a list"""
+        if not self.cors_origins:
+            return ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "https://trade-machine.vercel.app"]
+        return [origin.strip() for origin in self.cors_origins.split(',') if origin.strip()]
     
     # Rate limiting
     rate_limit_per_minute: int = 60
