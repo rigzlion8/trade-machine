@@ -41,7 +41,7 @@ async def initialize_deposit(
             )
         
         # Validate payment method specific requirements
-        if payment_method == "mobile_money":
+        if payment_method in ["mpesa", "airtel_money"]:
             if not phone_number:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

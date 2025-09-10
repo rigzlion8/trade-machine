@@ -82,7 +82,7 @@ class PaymentService:
                 "error": str(e)
             }
     
-    async def initialize_deposit(self, user_id: str, amount: float, email: str, payment_method: PaymentMethod = PaymentMethod.CARD) -> Dict[str, Any]:
+    async def initialize_deposit(self, user_id: str, amount: float, email: str, payment_method: PaymentMethod = PaymentMethod.CARD, phone_number: str = None, provider: str = None, bank_code: str = None) -> Dict[str, Any]:
         """Initialize a deposit transaction."""
         try:
             # Create payment record
@@ -102,13 +102,15 @@ class PaymentService:
             
             # Handle mobile money payments differently
             if payment_method in [PaymentMethod.MPESA, PaymentMethod.AIRTEL_MONEY]:
-                provider = "mpesa" if payment_method == PaymentMethod.MPESA else "airtel"
+                # Use provided phone number or fallback to email
+                phone = phone_number or email
+                provider_name = provider or ("mpesa" if payment_method == PaymentMethod.MPESA else "airtel")
                 paystack_result = await paystack_service.initialize_mobile_money_payment(
                     amount=amount,
-                    phone_number=email,  # Using email field for phone number
+                    phone_number=phone,
                     reference=payment_result["reference"],
                     callback_url=callback_url,
-                    provider=provider
+                    provider=provider_name
                 )
             else:
                 paystack_result = await paystack_service.initialize_transaction(

@@ -156,11 +156,24 @@ export interface CurrencyConversion {
 export class PaymentService {
   // Deposit operations
   static async initializeDeposit(amount: number, paymentMethod: string = 'card', phoneNumber?: string) {
-    const response = await api.post('/payments/deposit/initialize', { 
+    const payload: any = { 
       amount, 
-      payment_method: paymentMethod,
-      phone_number: phoneNumber
-    })
+      payment_method: paymentMethod
+    }
+    
+    // Add phone number for mobile money payments
+    if (phoneNumber) {
+      payload.phone_number = phoneNumber
+    }
+    
+    // Add provider for mobile money payments
+    if (paymentMethod === 'mpesa' || paymentMethod === 'airtel_money') {
+      payload.provider = paymentMethod
+    }
+    
+    console.log('Payment service payload:', payload)
+    const response = await api.post('/payments/deposit/initialize', payload)
+    console.log('Payment service response:', response.data)
     return response.data
   }
 

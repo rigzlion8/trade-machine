@@ -91,7 +91,9 @@ export default function Payments() {
         }
       }
 
+      console.log('Deposit request:', { amount, depositMethod, phoneNumber })
       const result = await PaymentService.initializeDeposit(amount, depositMethod, phoneNumber)
+      console.log('Deposit response:', result)
       
       if (result.authorization_url) {
         // Redirect to Paystack payment page
@@ -104,7 +106,19 @@ export default function Payments() {
       }
     } catch (error: any) {
       console.error('Deposit error:', error)
-      toast.error(error.response?.data?.detail || 'Failed to initialize deposit')
+      
+      // Better error handling
+      let errorMessage = 'Failed to initialize deposit'
+      
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast.error(errorMessage)
     }
   }
 
