@@ -37,7 +37,7 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://localhost:5173", 
         "http://localhost:5174",
-        "https://your-frontend-domain.vercel.app",  # Add your Vercel domain here
+        "https://trade-machine.vercel.app",  # Your Vercel domain
         "https://*.vercel.app"  # Allow all Vercel preview deployments
     ],
     allow_credentials=True,
