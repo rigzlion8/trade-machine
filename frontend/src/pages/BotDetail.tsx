@@ -166,7 +166,7 @@ const BotDetail: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/bots')}
@@ -174,9 +174,9 @@ const BotDetail: React.FC = () => {
               >
                 <ArrowLeft size={20} />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{bot.name}</h1>
-                <p className="text-gray-600">{bot.symbol} • {bot.strategy}</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{bot.name}</h1>
+                <p className="text-sm sm:text-base text-gray-600 truncate">{bot.symbol} • {bot.strategy}</p>
               </div>
             </div>
             
@@ -189,9 +189,10 @@ const BotDetail: React.FC = () => {
                 {bot.status === 'running' ? 'Active' : 'Stopped'}
               </span>
               
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+              <button className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 text-sm sm:text-base">
                 <Play size={16} />
-                <span>Start Bot</span>
+                <span className="hidden sm:inline">Start Bot</span>
+                <span className="sm:hidden">Start</span>
               </button>
             </div>
           </div>
@@ -255,7 +256,7 @@ const BotDetail: React.FC = () => {
             <Filter className="h-5 w-5 text-gray-500" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {/* Quick Period Selector */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Quick Select</label>
@@ -363,7 +364,46 @@ const BotDetail: React.FC = () => {
             {activityData.trades && activityData.trades.length > 0 && (
               <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Trades</h3>
-                <div className="overflow-x-auto">
+                
+                {/* Mobile-friendly trade cards */}
+                <div className="lg:hidden space-y-3">
+                  {activityData.trades.map((trade) => (
+                    <div key={trade.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          trade.type === 'buy' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {trade.type.toUpperCase()}
+                        </span>
+                        <span className={`text-sm font-medium ${
+                          trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {formatCurrency(trade.pnl)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-gray-500">Time</p>
+                          <p className="text-gray-900">{formatDate(trade.timestamp)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Amount</p>
+                          <p className="text-gray-900">{trade.amount.toFixed(6)}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-gray-500">Price</p>
+                          <p className="text-gray-900">{formatCurrency(trade.price)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop trades table */}
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>

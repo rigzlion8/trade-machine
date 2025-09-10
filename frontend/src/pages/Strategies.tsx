@@ -357,7 +357,54 @@ const Strategies: React.FC = () => {
         {/* Strategy Comparison */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Strategy Comparison</h2>
-          <div className="overflow-x-auto">
+          
+          {/* Mobile-friendly strategy comparison cards */}
+          <div className="lg:hidden space-y-4">
+            {strategyDatabase.map((strategy) => (
+              <div key={strategy.name} className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center mb-3">
+                  <div className={`p-2 rounded-lg ${strategy.color} text-white mr-3`}>
+                    {strategy.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900">{strategy.displayName}</h3>
+                    <p className="text-xs text-gray-500">{strategy.timeframe}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-500">Type</p>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(strategy.type)}`}>
+                      {strategy.type}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Risk</p>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRiskColor(strategy.riskLevel)}`}>
+                      {strategy.riskLevel}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Success Rate</p>
+                    <p className="text-gray-900 font-medium">{strategy.successRate}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Max Drawdown</p>
+                    <p className="text-gray-900 font-medium">{strategy.maxDrawdown}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-3">
+                  <p className="text-gray-500 text-xs">Best For</p>
+                  <p className="text-gray-700 text-xs">{strategy.bestFor[0]}...</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop comparison table */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -413,21 +460,21 @@ const Strategies: React.FC = () => {
       {/* Strategy Detail Modal */}
       {selectedStrategy && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-sm sm:max-w-2xl lg:max-w-4xl shadow-lg rounded-md bg-white mx-4">
             <div className="mt-3">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className={`p-3 rounded-lg ${selectedStrategy.color} text-white`}>
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start space-x-3 sm:space-x-4 flex-1">
+                  <div className={`p-2 sm:p-3 rounded-lg ${selectedStrategy.color} text-white flex-shrink-0`}>
                     {selectedStrategy.icon}
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{selectedStrategy.displayName}</h3>
-                    <p className="text-gray-600">{selectedStrategy.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-2xl font-bold text-gray-900">{selectedStrategy.displayName}</h3>
+                    <p className="text-sm sm:text-base text-gray-600 mt-1">{selectedStrategy.description}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedStrategy(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2"
                 >
                   <span className="sr-only">Close</span>
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
