@@ -13,6 +13,7 @@ const BotDetail = lazy(() => import('./pages/BotDetail'))
 const Strategies = lazy(() => import('./pages/Strategies'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
+const AuthError = lazy(() => import('./pages/AuthError'))
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/strategies" element={<Strategies />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route path="/auth/error" element={<AuthError />} />
         </Routes>
       </Suspense>
     </Layout>

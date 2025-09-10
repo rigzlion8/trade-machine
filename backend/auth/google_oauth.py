@@ -354,7 +354,7 @@ async def google_callback(code: str):
     except Exception as e:
         logger.error(f"Google callback error: {e}")
         # Redirect to frontend with error
-        error_url = f"{settings.frontend_url}/auth/error?message=Authentication failed"
+        error_url = f"{settings.frontend_url}/auth/error?message=Authentication%20failed"
         return RedirectResponse(url=error_url)
 
 @router.post("/refresh")
