@@ -53,10 +53,15 @@ async def get_or_create_user(google_user_info: dict) -> UserResponse:
     try:
         logger.info(f"Processing user info: {google_user_info}")
         
+        # Normalize field names - Google sometimes uses 'id' instead of 'sub'
+        if 'sub' not in google_user_info and 'id' in google_user_info:
+            google_user_info['sub'] = google_user_info['id']
+            logger.info(f"Normalized 'id' to 'sub': {google_user_info['sub']}")
+        
         # Validate required fields
         if "sub" not in google_user_info:
-            logger.error(f"Missing 'sub' field in google_user_info: {google_user_info}")
-            raise ValueError("Missing 'sub' field in Google user info")
+            logger.error(f"Missing 'sub' or 'id' field in google_user_info: {google_user_info}")
+            raise ValueError("Missing 'sub' or 'id' field in Google user info")
         
         if "email" not in google_user_info:
             logger.error(f"Missing 'email' field in google_user_info: {google_user_info}")
@@ -335,6 +340,11 @@ async def google_callback(code: str):
             response = await client.get(user_info_url, headers=headers)
             response.raise_for_status()
             user_info = response.json()
+        
+        # Normalize field names - Google sometimes uses 'id' instead of 'sub'
+        if 'sub' not in user_info and 'id' in user_info:
+            user_info['sub'] = user_info['id']
+            logger.info(f"Normalized 'id' to 'sub' in callback: {user_info['sub']}")
         
         # Get or create user
         user = await get_or_create_user(user_info)
