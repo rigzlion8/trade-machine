@@ -16,7 +16,7 @@ import Deposit from '../components/Deposit'
 import Withdraw from '../components/Withdraw'
 import CryptoWalletConnection from '../components/CryptoWalletConnection'
 import CryptoTransfer from '../components/CryptoTransfer'
-import BankToCryptoFunding from '../components/BankToCryptoFunding'
+import TransferModal from '../components/TransferModal'
 import { WalletService } from '../services/api'
 import { cryptoWalletService, CryptoWallet } from '../services/cryptoWallet'
 import { initializeWebSocket, getWebSocketService, disconnectWebSocket } from '../services/websocket'
@@ -30,7 +30,8 @@ export default function Wallet() {
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [showCryptoTransfer, setShowCryptoTransfer] = useState(false)
-  const [showBankToCrypto, setShowBankToCrypto] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [transferType, setTransferType] = useState<'bank_to_wallet' | 'wallet_to_crypto' | 'wallet_to_mpesa' | 'wallet_to_bank' | undefined>()
   const [cryptoTransferMode, setCryptoTransferMode] = useState<'send' | 'receive'>('send')
   const [walletData, setWalletData] = useState<any>(null)
   const [transactions, setTransactions] = useState<any[]>([])
@@ -159,14 +160,22 @@ export default function Wallet() {
     setShowCryptoTransfer(false)
   }
 
-  const handleBankToCryptoSuccess = (data: any) => {
-    toast.success('Funding request submitted successfully!')
-    setShowBankToCrypto(false)
+  const handleNewTransferSuccess = (result: any) => {
+    toast.success('Transfer completed successfully!')
+    setShowTransferModal(false)
+    // Refresh wallet data
+    loadWalletData()
+    loadTransactions()
   }
 
   const openCryptoTransfer = (mode: 'send' | 'receive') => {
     setCryptoTransferMode(mode)
     setShowCryptoTransfer(true)
+  }
+
+  const openTransferModal = (type: 'bank_to_wallet' | 'wallet_to_crypto' | 'wallet_to_mpesa' | 'wallet_to_bank') => {
+    setTransferType(type)
+    setShowTransferModal(true)
   }
 
   const formatTransactionType = (type: string) => {
@@ -431,6 +440,17 @@ export default function Wallet() {
                     <p className="text-sm text-gray-500">Send to local bank account</p>
                   </div>
                 </button>
+                
+                <button 
+                  onClick={() => openTransferModal('wallet_to_mpesa')}
+                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
+                >
+                  <PhoneIcon className="h-8 w-8 text-green-600 mr-3" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Send to M-Pesa</p>
+                    <p className="text-sm text-gray-500">Transfer to M-Pesa account (1% fee)</p>
+                  </div>
+                </button>
               </div>
             </div>
           )}
@@ -505,24 +525,24 @@ export default function Wallet() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
-                      onClick={() => setShowBankToCrypto(true)}
+                      onClick={() => openTransferModal('wallet_to_crypto')}
                       className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
                     >
                       <CreditCardIcon className="h-8 w-8 text-blue-600 mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Fund with Bank</p>
-                        <p className="text-sm text-gray-500">Buy crypto with bank/card</p>
+                        <p className="font-medium text-gray-900">Wallet to Crypto</p>
+                        <p className="text-sm text-gray-500">Convert KES to crypto (2% fee)</p>
                       </div>
                     </button>
                     
                     <button
-                      onClick={() => setShowDeposit(true)}
+                      onClick={() => openTransferModal('bank_to_wallet')}
                       className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
                     >
                       <BanknotesIcon className="h-8 w-8 text-purple-600 mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Deposit Fiat</p>
-                        <p className="text-sm text-gray-500">Add KES to your wallet</p>
+                        <p className="font-medium text-gray-900">Fund Wallet</p>
+                        <p className="text-sm text-gray-500">Add KES from bank/card/M-Pesa</p>
                       </div>
                     </button>
                   </div>
@@ -575,11 +595,13 @@ export default function Wallet() {
         />
       )}
 
-      {/* Bank to Crypto Funding Modal */}
-      {showBankToCrypto && (
-        <BankToCryptoFunding
-          onClose={() => setShowBankToCrypto(false)}
-          onSuccess={handleBankToCryptoSuccess}
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <TransferModal
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={handleNewTransferSuccess}
+          transferType={transferType}
+          availableBalance={walletData?.balance_kes || 0}
         />
       )}
     </div>
