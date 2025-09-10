@@ -184,7 +184,7 @@ export default function Crypto() {
               <div className="flex items-center mt-2">
                 <div className={`w-2 h-2 rounded-full mr-2 ${wsStatus.isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
                 <span className="text-xs text-primary-200">
-                  {wsStatus.isConnected ? 'Live Updates Connected' : 'Connecting...'}
+                  {wsStatus.isConnected ? 'Connected' : 'Disconnected'}
                 </span>
                 {wsStatus.isConnected && (
                   <div className={`w-2 h-2 rounded-full ml-2 ${wsStatus.isHealthy ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
@@ -199,7 +199,7 @@ export default function Crypto() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow mb-6">
           <nav className="overflow-x-auto scrollbar-hide px-4 sm:px-6">
@@ -245,45 +245,45 @@ export default function Crypto() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <button
                       onClick={() => openCryptoTransfer('send')}
-                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                      className="flex items-center p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
                     >
-                      <ArrowUpIcon className="h-8 w-8 text-primary-600 mr-3" />
+                      <ArrowUpIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary-600 mr-2 sm:mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Send Crypto</p>
-                        <p className="text-sm text-gray-500">Send to any address</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">Send Crypto</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Send to any address</p>
                       </div>
                     </button>
                     
                     <button
                       onClick={() => openCryptoTransfer('receive')}
-                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-success-300 hover:bg-success-50 transition-colors"
+                      className="flex items-center p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-success-300 hover:bg-success-50 transition-colors"
                     >
-                      <ArrowDownIcon className="h-8 w-8 text-success-600 mr-3" />
+                      <ArrowDownIcon className="h-6 w-6 sm:h-8 sm:w-8 text-success-600 mr-2 sm:mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Receive Crypto</p>
-                        <p className="text-sm text-gray-500">Get your address</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">Receive Crypto</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Get your address</p>
                       </div>
                     </button>
 
                     <button
                       onClick={() => openTransferModal('wallet_to_crypto')}
-                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                      className="flex items-center p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
                     >
-                      <CreditCardIcon className="h-8 w-8 text-blue-600 mr-3" />
+                      <CreditCardIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mr-2 sm:mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Buy Crypto</p>
-                        <p className="text-sm text-gray-500">Convert KES to crypto</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">Buy Crypto</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Convert KES to crypto</p>
                       </div>
                     </button>
                     
                     <button
                       onClick={() => openTransferModal('bank_to_wallet')}
-                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                      className="flex items-center p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
                     >
-                      <BanknotesIcon className="h-8 w-8 text-purple-600 mr-3" />
+                      <BanknotesIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mr-2 sm:mr-3" />
                       <div className="text-left">
-                        <p className="font-medium text-gray-900">Fund Wallet</p>
-                        <p className="text-sm text-gray-500">Add KES to wallet</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">Fund Wallet</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Add KES to wallet</p>
                       </div>
                     </button>
                   </div>
@@ -297,8 +297,8 @@ export default function Crypto() {
                   <div className="space-y-3">
                     {cryptoTransactions.slice(0, 3).map((transaction) => (
                       <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center">
-                          <div className={`p-2 rounded-full mr-3 ${
+                        <div className="flex items-center min-w-0 flex-1">
+                          <div className={`p-2 rounded-full mr-3 flex-shrink-0 ${
                             transaction.type === 'send' ? 'bg-red-100' : 'bg-green-100'
                           }`}>
                             {transaction.type === 'send' ? (
@@ -307,16 +307,16 @@ export default function Crypto() {
                               <ArrowDownIcon className="h-4 w-4 text-green-600" />
                             )}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                               {formatTransactionType(transaction.type)} {transaction.amount} {transaction.token}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 truncate">
                               {transaction.type === 'send' ? 'To' : 'From'}: {formatAddress(transaction.to || transaction.from)}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0 ml-2">
                           <p className={`text-xs font-medium ${formatTransactionStatus(transaction.status).color}`}>
                             {formatTransactionStatus(transaction.status).text}
                           </p>
@@ -471,27 +471,27 @@ export default function Crypto() {
               <h3 className="text-lg font-medium text-gray-900">Fund Your Wallet</h3>
               <p className="text-gray-600">Add funds to your wallet to buy crypto</p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <button
                   onClick={() => openTransferModal('bank_to_wallet')}
-                  className="flex items-center p-6 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                  className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
                 >
-                  <BanknotesIcon className="h-12 w-12 text-primary-600 mr-4" />
+                  <BanknotesIcon className="h-8 w-8 sm:h-12 sm:w-12 text-primary-600 mr-3 sm:mr-4" />
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">Fund with Bank</p>
-                    <p className="text-sm text-gray-500">Transfer from bank account</p>
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">Fund with Bank</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Transfer from bank account</p>
                     <p className="text-xs text-green-600 mt-1">Free transfer</p>
                   </div>
                 </button>
                 
                 <button
                   onClick={() => openTransferModal('wallet_to_crypto')}
-                  className="flex items-center p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                  className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
                 >
-                  <CreditCardIcon className="h-12 w-12 text-blue-600 mr-4" />
+                  <CreditCardIcon className="h-8 w-8 sm:h-12 sm:w-12 text-blue-600 mr-3 sm:mr-4" />
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">Buy Crypto</p>
-                    <p className="text-sm text-gray-500">Convert KES to crypto</p>
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">Buy Crypto</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Convert KES to crypto</p>
                     <p className="text-xs text-blue-600 mt-1">2% fee</p>
                   </div>
                 </button>
