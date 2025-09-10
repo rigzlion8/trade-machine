@@ -17,7 +17,7 @@ class PaystackService:
         if not self.secret_key:
             logger.warning("Paystack secret key not configured")
     
-    async def initialize_transaction(self, amount: float, email: str, reference: str, callback_url: str, payment_type: PaymentType = PaymentType.DEPOSIT) -> Dict[str, Any]:
+    async def initialize_transaction(self, amount: float, email: str, reference: str, callback_url: str, payment_type: PaymentType = PaymentType.DEPOSIT, payment_method: PaymentMethod = PaymentMethod.CARD) -> Dict[str, Any]:
         """Initialize a Paystack transaction for deposit."""
         try:
             if not self.secret_key:
@@ -40,10 +40,27 @@ class PaystackService:
                 "currency": "NGN",
                 "metadata": {
                     "type": payment_type.value,
+                    "payment_method": payment_method.value,
                     "amount_kes": amount,
                     "amount_ngn": amount_ngn
                 }
             }
+            
+            # Add mobile money specific parameters
+            if payment_method in [PaymentMethod.MPESA, PaymentMethod.AIRTEL_MONEY]:
+                # For mobile money, we need to specify the channel
+                if payment_method == PaymentMethod.MPESA:
+                    data["channels"] = ["mobile_money"]
+                    data["mobile_money"] = {
+                        "phone": email,  # Using email field for phone number
+                        "provider": "mpesa"
+                    }
+                elif payment_method == PaymentMethod.AIRTEL_MONEY:
+                    data["channels"] = ["mobile_money"]
+                    data["mobile_money"] = {
+                        "phone": email,  # Using email field for phone number
+                        "provider": "airtel"
+                    }
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, json=data, headers=headers)
@@ -379,6 +396,95 @@ class PaystackService:
                     
         except Exception as e:
             logger.error(f"Error getting Paystack balance: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def initialize_mobile_money_payment(self, amount: float, phone_number: str, reference: str, callback_url: str, provider: str = "mpesa") -> Dict[str, Any]:
+        """Initialize a mobile money payment (M-Pesa or Airtel Money)."""
+        try:
+            if not self.secret_key:
+                raise ValueError("Paystack not configured")
+            
+            url = f"{self.base_url}/transaction/initialize"
+            headers = {
+                "Authorization": f"Bearer {self.secret_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Convert KES to NGN
+            amount_ngn = amount * 6.67
+            
+            data = {
+                "amount": int(amount_ngn * 100),
+                "email": phone_number,  # Using email field for phone number
+                "reference": reference,
+                "callback_url": callback_url,
+                "currency": "NGN",
+                "channels": ["mobile_money"],
+                "mobile_money": {
+                    "phone": phone_number,
+                    "provider": provider
+                },
+                "metadata": {
+                    "type": "deposit",
+                    "payment_method": provider,
+                    "amount_kes": amount,
+                    "amount_ngn": amount_ngn
+                }
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=data, headers=headers)
+                response.raise_for_status()
+                
+                result = response.json()
+                if result.get("status"):
+                    return {
+                        "success": True,
+                        "authorization_url": result["data"]["authorization_url"],
+                        "reference": result["data"]["reference"],
+                        "access_code": result["data"]["access_code"],
+                        "amount_ngn": amount_ngn,
+                        "provider": provider
+                    }
+                else:
+                    raise Exception(f"Paystack error: {result.get('message', 'Unknown error')}")
+                    
+        except Exception as e:
+            logger.error(f"Error initializing mobile money payment: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_mobile_money_providers(self) -> Dict[str, Any]:
+        """Get available mobile money providers."""
+        try:
+            # This would typically come from Paystack's API
+            # For now, we'll return the providers we support
+            return {
+                "success": True,
+                "providers": [
+                    {
+                        "code": "mpesa",
+                        "name": "M-Pesa",
+                        "country": "Kenya",
+                        "currency": "KES",
+                        "logo": "https://via.placeholder.com/50x50/00A651/FFFFFF?text=M"
+                    },
+                    {
+                        "code": "airtel",
+                        "name": "Airtel Money",
+                        "country": "Kenya", 
+                        "currency": "KES",
+                        "logo": "https://via.placeholder.com/50x50/E60012/FFFFFF?text=A"
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error getting mobile money providers: {e}")
             return {
                 "success": False,
                 "error": str(e)

@@ -9,8 +9,10 @@ from models.payment import (
 )
 from services.payment_service import payment_service
 from payments.paystack_service import paystack_service
+from services.exchange_rate_service import exchange_rate_service
 from auth.jwt_handler import get_current_active_user
 from models.user import User
+from models.payment import PaymentMethod
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,6 +20,10 @@ router = APIRouter()
 @router.post("/deposit/initialize", response_model=dict)
 async def initialize_deposit(
     amount: float,
+    payment_method: str = "card",
+    phone_number: Optional[str] = None,
+    provider: Optional[str] = None,
+    bank_code: Optional[str] = None,
     current_user: User = Depends(get_current_active_user)
 ):
     """Initialize a deposit transaction."""
@@ -34,10 +40,33 @@ async def initialize_deposit(
                 detail="Minimum deposit amount is KES 100"
             )
         
+        # Validate payment method specific requirements
+        if payment_method == "mobile_money":
+            if not phone_number:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number is required for mobile money payments"
+                )
+            if not provider:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Provider is required for mobile money payments"
+                )
+        elif payment_method == "ussd":
+            if not bank_code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Bank code is required for USSD payments"
+                )
+        
         result = await payment_service.initialize_deposit(
             user_id=str(current_user.id),
             amount=amount,
-            email=current_user.email
+            email=current_user.email,
+            payment_method=PaymentMethod(payment_method),
+            phone_number=phone_number,
+            provider=provider,
+            bank_code=bank_code
         )
         
         if not result["success"]:
@@ -46,14 +75,24 @@ async def initialize_deposit(
                 detail=result["error"]
             )
         
-        return {
+        response_data = {
             "message": "Deposit initialized successfully",
             "payment_id": result["payment_id"],
             "reference": result["reference"],
-            "authorization_url": result["authorization_url"],
             "fees": result["fees"],
             "net_amount": result["net_amount"]
         }
+        
+        # Add method-specific response data
+        if result.get("authorization_url"):
+            response_data["authorization_url"] = result["authorization_url"]
+        if result.get("ussd_code"):
+            response_data["ussd_code"] = result["ussd_code"]
+            response_data["display_text"] = result.get("display_text")
+        if result.get("message"):
+            response_data["message"] = result["message"]
+        
+        return response_data
         
     except HTTPException:
         raise
@@ -230,6 +269,56 @@ async def get_supported_banks():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get supported banks"
+        )
+
+@router.get("/mobile-money-providers")
+async def get_mobile_money_providers():
+    """Get list of supported mobile money providers."""
+    try:
+        result = await paystack_service.get_mobile_money_providers()
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+        
+        return {
+            "providers": result["providers"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting mobile money providers: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get mobile money providers"
+        )
+
+@router.get("/ussd-codes")
+async def get_ussd_codes():
+    """Get list of available USSD codes for payments."""
+    try:
+        result = await paystack_service.get_ussd_codes()
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+        
+        return {
+            "ussd_codes": result["ussd_codes"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting USSD codes: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get USSD codes"
         )
 
 @router.post("/banks/resolve")
@@ -439,4 +528,97 @@ async def handle_payment_webhook(webhook_data: dict):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Webhook processing failed"
+        )
+
+@router.get("/exchange-rates")
+async def get_exchange_rates():
+    """Get current exchange rates."""
+    try:
+        rates = await exchange_rate_service.get_exchange_rates()
+        
+        if not rates:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Exchange rates service unavailable"
+            )
+        
+        return {
+            "base": rates.base,
+            "rates": rates.rates,
+            "last_updated": rates.last_updated
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting exchange rates: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get exchange rates"
+        )
+
+@router.get("/mobile-money-providers")
+async def get_mobile_money_providers():
+    """Get available mobile money providers."""
+    try:
+        result = await paystack_service.get_mobile_money_providers()
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+        
+        return {
+            "providers": result["providers"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting mobile money providers: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get mobile money providers"
+        )
+
+@router.post("/convert-currency")
+async def convert_currency(
+    amount: float,
+    from_currency: str = "KES",
+    to_currency: str = "USD"
+):
+    """Convert amount from one currency to another."""
+    try:
+        if amount <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Amount must be greater than 0"
+            )
+        
+        converted_amount = await exchange_rate_service.convert_amount(
+            amount, from_currency, to_currency
+        )
+        
+        if converted_amount is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Currency conversion failed"
+            )
+        
+        return {
+            "original_amount": amount,
+            "original_currency": from_currency,
+            "converted_amount": converted_amount,
+            "target_currency": to_currency,
+            "rate": converted_amount / amount if amount > 0 else 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error converting currency: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to convert currency"
         )

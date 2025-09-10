@@ -82,15 +82,15 @@ class PaymentService:
                 "error": str(e)
             }
     
-    async def initialize_deposit(self, user_id: str, amount: float, email: str) -> Dict[str, Any]:
+    async def initialize_deposit(self, user_id: str, amount: float, email: str, payment_method: PaymentMethod = PaymentMethod.CARD) -> Dict[str, Any]:
         """Initialize a deposit transaction."""
         try:
             # Create payment record
             payment_data = PaymentCreate(
                 amount=amount,
                 payment_type=PaymentType.DEPOSIT,
-                payment_method=PaymentMethod.CARD,
-                description=f"Wallet deposit of KES {amount:,.2f}"
+                payment_method=payment_method,
+                description=f"Wallet deposit of KES {amount:,.2f} via {payment_method.value.replace('_', ' ').title()}"
             )
             
             payment_result = await self.create_payment(user_id, payment_data)
@@ -99,13 +99,26 @@ class PaymentService:
             
             # Initialize Paystack transaction
             callback_url = f"https://trade-machine.vercel.app/payments/callback"
-            paystack_result = await paystack_service.initialize_transaction(
-                amount=amount,
-                email=email,
-                reference=payment_result["reference"],
-                callback_url=callback_url,
-                payment_type=PaymentType.DEPOSIT
-            )
+            
+            # Handle mobile money payments differently
+            if payment_method in [PaymentMethod.MPESA, PaymentMethod.AIRTEL_MONEY]:
+                provider = "mpesa" if payment_method == PaymentMethod.MPESA else "airtel"
+                paystack_result = await paystack_service.initialize_mobile_money_payment(
+                    amount=amount,
+                    phone_number=email,  # Using email field for phone number
+                    reference=payment_result["reference"],
+                    callback_url=callback_url,
+                    provider=provider
+                )
+            else:
+                paystack_result = await paystack_service.initialize_transaction(
+                    amount=amount,
+                    email=email,
+                    reference=payment_result["reference"],
+                    callback_url=callback_url,
+                    payment_type=PaymentType.DEPOSIT,
+                    payment_method=payment_method
+                )
             
             if not paystack_result["success"]:
                 # Update payment status to failed

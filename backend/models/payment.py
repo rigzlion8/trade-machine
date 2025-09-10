@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -22,6 +22,8 @@ class PaymentMethod(str, Enum):
     BANK_TRANSFER = "bank_transfer"
     CARD = "card"
     MOBILE_MONEY = "mobile_money"
+    MPESA = "mpesa"
+    AIRTEL_MONEY = "airtel_money"
     CRYPTO = "crypto"
     WALLET = "wallet"
 
@@ -119,3 +121,14 @@ class PaymentWebhook(BaseModel):
     event: str
     data: dict
     reference: str
+
+class ExchangeRate(BaseModel):
+    base_currency: str = "KES"
+    target_currency: str
+    rate: float
+    last_updated: datetime
+
+class ExchangeRatesResponse(BaseModel):
+    base: str = "KES"
+    rates: Dict[str, float]
+    last_updated: datetime

@@ -131,10 +131,36 @@ export interface PaymentFilters {
   skip?: number
 }
 
+export interface ExchangeRates {
+  base: string
+  rates: Record<string, number>
+  last_updated: string
+}
+
+export interface MobileMoneyProvider {
+  code: string
+  name: string
+  country: string
+  currency: string
+  logo: string
+}
+
+export interface CurrencyConversion {
+  original_amount: number
+  original_currency: string
+  converted_amount: number
+  target_currency: string
+  rate: number
+}
+
 export class PaymentService {
   // Deposit operations
-  static async initializeDeposit(amount: number) {
-    const response = await api.post('/payments/deposit/initialize', { amount })
+  static async initializeDeposit(amount: number, paymentMethod: string = 'card', phoneNumber?: string) {
+    const response = await api.post('/payments/deposit/initialize', { 
+      amount, 
+      payment_method: paymentMethod,
+      phone_number: phoneNumber
+    })
     return response.data
   }
 
@@ -209,6 +235,27 @@ export class PaymentService {
 
   static async deleteBankAccount(accountId: string) {
     const response = await api.delete(`/payments/bank-accounts/${accountId}`)
+    return response.data
+  }
+
+  // Exchange rate operations
+  static async getExchangeRates(): Promise<ExchangeRates> {
+    const response = await api.get('/payments/exchange-rates')
+    return response.data
+  }
+
+  static async convertCurrency(amount: number, fromCurrency: string = 'KES', toCurrency: string = 'USD'): Promise<CurrencyConversion> {
+    const response = await api.post('/payments/convert-currency', {
+      amount,
+      from_currency: fromCurrency,
+      to_currency: toCurrency
+    })
+    return response.data
+  }
+
+  // Mobile money operations
+  static async getMobileMoneyProviders(): Promise<{ providers: MobileMoneyProvider[] }> {
+    const response = await api.get('/payments/mobile-money-providers')
     return response.data
   }
 

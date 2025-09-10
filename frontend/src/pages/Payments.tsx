@@ -13,7 +13,7 @@ import {
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline'
-import PaymentService, { Payment, PaymentStats, BankAccount, Bank, PaymentFilters } from '../services/paymentService'
+import PaymentService, { Payment, PaymentStats, BankAccount, Bank, PaymentFilters, ExchangeRates, MobileMoneyProvider } from '../services/paymentService'
 import toast from 'react-hot-toast'
 
 export default function Payments() {
@@ -21,6 +21,8 @@ export default function Payments() {
   const [stats, setStats] = useState<PaymentStats | null>(null)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [banks, setBanks] = useState<Bank[]>([])
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(null)
+  const [mobileMoneyProviders, setMobileMoneyProviders] = useState<MobileMoneyProvider[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [showDepositModal, setShowDepositModal] = useState(false)
@@ -30,6 +32,8 @@ export default function Payments() {
   
   // Form states
   const [depositAmount, setDepositAmount] = useState('')
+  const [depositMethod, setDepositMethod] = useState('card')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [withdrawalAmount, setWithdrawalAmount] = useState('')
   const [selectedBankAccount, setSelectedBankAccount] = useState('')
   const [newBankAccount, setNewBankAccount] = useState({
@@ -45,17 +49,21 @@ export default function Payments() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [paymentsData, statsData, bankAccountsData, banksData] = await Promise.all([
+      const [paymentsData, statsData, bankAccountsData, banksData, exchangeRatesData, mobileMoneyData] = await Promise.all([
         PaymentService.getPaymentHistory({ limit: 50 }),
         PaymentService.getPaymentStats(),
         PaymentService.getBankAccounts(),
-        PaymentService.getSupportedBanks()
+        PaymentService.getSupportedBanks(),
+        PaymentService.getExchangeRates(),
+        PaymentService.getMobileMoneyProviders()
       ])
       
       setPayments(paymentsData)
       setStats(statsData)
       setBankAccounts(bankAccountsData)
       setBanks(banksData.banks)
+      setExchangeRates(exchangeRatesData)
+      setMobileMoneyProviders(mobileMoneyData.providers)
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Failed to load payment data')
@@ -72,7 +80,15 @@ export default function Payments() {
         return
       }
 
-      const result = await PaymentService.initializeDeposit(amount)
+      // Validate mobile money requirements
+      if (depositMethod === 'mpesa' || depositMethod === 'airtel_money') {
+        if (!phoneNumber) {
+          toast.error('Phone number is required for mobile money payments')
+          return
+        }
+      }
+
+      const result = await PaymentService.initializeDeposit(amount, depositMethod, phoneNumber)
       
       if (result.authorization_url) {
         // Redirect to Paystack payment page
@@ -80,6 +96,8 @@ export default function Payments() {
         toast.success('Redirecting to payment page...')
         setShowDepositModal(false)
         setDepositAmount('')
+        setPhoneNumber('')
+        setDepositMethod('card')
       }
     } catch (error: any) {
       console.error('Deposit error:', error)
@@ -302,6 +320,31 @@ export default function Payments() {
         </div>
       )}
 
+      {/* Exchange Rates */}
+      {exchangeRates && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Exchange Rates</h3>
+            <p className="text-sm text-gray-500">
+              Last updated: {new Date(exchangeRates.last_updated).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {Object.entries(exchangeRates.rates).map(([currency, rate]) => (
+                <div key={currency} className="text-center p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm font-medium text-gray-900">{currency}</div>
+                  <div className="text-lg font-bold text-primary-600">
+                    {rate.toFixed(4)}
+                  </div>
+                  <div className="text-xs text-gray-500">per KES</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       {showFilters && (
         <div className="bg-white shadow rounded-lg p-6">
@@ -497,6 +540,64 @@ export default function Payments() {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Deposit Funds</h3>
+              
+              {/* Payment Method Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  <label className="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="card"
+                      checked={depositMethod === 'card'}
+                      onChange={(e) => setDepositMethod(e.target.value)}
+                      className="mr-3"
+                    />
+                    <div className="flex items-center">
+                      <span className="text-2xl mr-2">💳</span>
+                      <span className="text-sm font-medium">Card Payment</span>
+                    </div>
+                  </label>
+                  
+                  {mobileMoneyProviders.map((provider) => (
+                    <label key={provider.code} className="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={provider.code}
+                        checked={depositMethod === provider.code}
+                        onChange={(e) => setDepositMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-2">📱</span>
+                        <span className="text-sm font-medium">{provider.name}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Phone Number for Mobile Money */}
+              {(depositMethod === 'mpesa' || depositMethod === 'airtel_money') && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., 0712345678"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter your {depositMethod === 'mpesa' ? 'M-Pesa' : 'Airtel Money'} phone number</p>
+                </div>
+              )}
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Amount (KES)
