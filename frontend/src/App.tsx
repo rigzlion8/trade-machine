@@ -8,6 +8,7 @@ import ConnectionPoolMonitor from './components/ConnectionPoolMonitor'
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
+const Signup = lazy(() => import('./pages/Signup'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const BotList = lazy(() => import('./pages/BotList'))
 const BotDetail = lazy(() => import('./pages/BotDetail'))
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/bots" element={<BotList />} />
           <Route path="/bots/:botId" element={<BotDetail />} />

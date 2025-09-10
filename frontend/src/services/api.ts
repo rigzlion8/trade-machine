@@ -71,6 +71,7 @@ export class AuthService {
     email: string
     full_name: string
     phone_number?: string
+    password?: string
   }) {
     const response = await api.post('/auth/register', userData)
     return response.data
