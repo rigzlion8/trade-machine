@@ -163,7 +163,7 @@ const BotList: React.FC = () => {
           className="btn-primary flex items-center gap-2"
         >
           <PlusIcon className="h-5 w-5" />
-          Create Bot
+          Start
         </button>
       </div>
 
@@ -235,7 +235,7 @@ const BotList: React.FC = () => {
               onClick={() => setShowCreateModal(true)}
               className="mt-6 btn-primary"
             >
-              Create Bot
+              Start
             </button>
           </div>
         ) : (
@@ -437,7 +437,7 @@ const BotList: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-full max-w-md sm:max-w-lg shadow-lg rounded-md bg-white mx-4">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Trading Bot</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Start New Trading Bot</h3>
               
               <div className="space-y-4">
                 <div>
@@ -516,7 +516,7 @@ const BotList: React.FC = () => {
                   disabled={!newBot.name || !newBot.strategy}
                   className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Bot
+                  Start Bot
                 </button>
               </div>
             </div>

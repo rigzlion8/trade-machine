@@ -14,7 +14,11 @@ import P2PTransfer from '../components/P2PTransfer'
 import BankTransfer from '../components/BankTransfer'
 import Deposit from '../components/Deposit'
 import Withdraw from '../components/Withdraw'
+import CryptoWalletConnection from '../components/CryptoWalletConnection'
+import CryptoTransfer from '../components/CryptoTransfer'
+import BankToCryptoFunding from '../components/BankToCryptoFunding'
 import { WalletService } from '../services/api'
+import { cryptoWalletService, CryptoWallet } from '../services/cryptoWallet'
 import { initializeWebSocket, getWebSocketService, disconnectWebSocket } from '../services/websocket'
 import toast from 'react-hot-toast'
 
@@ -25,10 +29,14 @@ export default function Wallet() {
   const [showBankTransfer, setShowBankTransfer] = useState(false)
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
+  const [showCryptoTransfer, setShowCryptoTransfer] = useState(false)
+  const [showBankToCrypto, setShowBankToCrypto] = useState(false)
+  const [cryptoTransferMode, setCryptoTransferMode] = useState<'send' | 'receive'>('send')
   const [walletData, setWalletData] = useState<any>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [wsConnected, setWsConnected] = useState(false)
+  const [cryptoWallet, setCryptoWallet] = useState<CryptoWallet | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -120,6 +128,7 @@ export default function Wallet() {
     { id: 'transactions', name: 'Transactions', icon: ClockIcon },
     { id: 'send', name: 'Send Money', icon: ArrowUpIcon },
     { id: 'receive', name: 'Receive', icon: ArrowDownIcon },
+    { id: 'crypto', name: 'Crypto', icon: CreditCardIcon },
   ]
 
   const handleTransferSuccess = async (data: any) => {
@@ -133,6 +142,31 @@ export default function Wallet() {
     
     // Show success message
     toast.success(`Transfer completed! Reference: ${data.reference}`)
+  }
+
+  const handleCryptoWalletConnected = (wallet: CryptoWallet) => {
+    setCryptoWallet(wallet)
+    toast.success('Crypto wallet connected successfully!')
+  }
+
+  const handleCryptoWalletDisconnected = () => {
+    setCryptoWallet(null)
+    toast.success('Crypto wallet disconnected')
+  }
+
+  const handleCryptoTransferSuccess = (transaction: any) => {
+    toast.success('Crypto transaction completed!')
+    setShowCryptoTransfer(false)
+  }
+
+  const handleBankToCryptoSuccess = (data: any) => {
+    toast.success('Funding request submitted successfully!')
+    setShowBankToCrypto(false)
+  }
+
+  const openCryptoTransfer = (mode: 'send' | 'receive') => {
+    setCryptoTransferMode(mode)
+    setShowCryptoTransfer(true)
   }
 
   const formatTransactionType = (type: string) => {
@@ -278,32 +312,34 @@ export default function Wallet() {
       <div className="bg-white rounded-lg shadow">
         {/* Tab Navigation */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center">
-                  <tab.icon className="h-5 w-5 mr-2" />
-                  {tab.name}
-                </div>
-              </button>
-            ))}
+          <nav className="flex overflow-x-auto scrollbar-hide px-4 sm:px-6">
+            <div className="flex space-x-6 sm:space-x-8 min-w-max">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <tab.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                    <span className="text-xs sm:text-sm">{tab.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </nav>
         </div>
 
         {/* Tab Panels */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Wallet Overview</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-2xl font-bold text-primary-600">{walletData?.daily_transfer_count || 0}</p>
                   <p className="text-sm text-gray-600">Today's Transfers</p>
@@ -373,7 +409,7 @@ export default function Wallet() {
               <h3 className="text-lg font-medium text-gray-900">Send Money</h3>
               <p className="text-gray-600">Choose how you want to send money:</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button 
                   onClick={() => setShowP2PTransfer(true)}
                   className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
@@ -426,6 +462,74 @@ export default function Wallet() {
               </div>
             </div>
           )}
+
+          {activeTab === 'crypto' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900">Crypto Wallet</h3>
+              <p className="text-gray-600">Manage your cryptocurrency assets and transactions</p>
+              
+              {/* Crypto Wallet Connection */}
+              <CryptoWalletConnection
+                onWalletConnected={handleCryptoWalletConnected}
+                onWalletDisconnected={handleCryptoWalletDisconnected}
+              />
+
+              {/* Crypto Actions */}
+              {cryptoWallet && (
+                <div className="space-y-4">
+                  <h4 className="text-md font-medium text-gray-900">Crypto Actions</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => openCryptoTransfer('send')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                    >
+                      <ArrowUpIcon className="h-8 w-8 text-primary-600 mr-3" />
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">Send Crypto</p>
+                        <p className="text-sm text-gray-500">Send tokens to any address</p>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => openCryptoTransfer('receive')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-success-300 hover:bg-success-50 transition-colors"
+                    >
+                      <ArrowDownIcon className="h-8 w-8 text-success-600 mr-3" />
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">Receive Crypto</p>
+                        <p className="text-sm text-gray-500">Get your wallet address</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setShowBankToCrypto(true)}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      <CreditCardIcon className="h-8 w-8 text-blue-600 mr-3" />
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">Fund with Bank</p>
+                        <p className="text-sm text-gray-500">Buy crypto with bank/card</p>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowDeposit(true)}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                    >
+                      <BanknotesIcon className="h-8 w-8 text-purple-600 mr-3" />
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">Deposit Fiat</p>
+                        <p className="text-sm text-gray-500">Add KES to your wallet</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -459,6 +563,23 @@ export default function Wallet() {
           onClose={() => setShowWithdraw(false)}
           onSuccess={handleTransferSuccess}
           availableBalance={walletData?.balance_kes || 0}
+        />
+      )}
+
+      {/* Crypto Transfer Modal */}
+      {showCryptoTransfer && (
+        <CryptoTransfer
+          onClose={() => setShowCryptoTransfer(false)}
+          onSuccess={handleCryptoTransferSuccess}
+          mode={cryptoTransferMode}
+        />
+      )}
+
+      {/* Bank to Crypto Funding Modal */}
+      {showBankToCrypto && (
+        <BankToCryptoFunding
+          onClose={() => setShowBankToCrypto(false)}
+          onSuccess={handleBankToCryptoSuccess}
         />
       )}
     </div>
