@@ -14,6 +14,55 @@ export default function GoogleCallback() {
   useEffect(() => {
     const handleGoogleCallback = async () => {
       try {
+        // Check if we have direct tokens from backend redirect
+        const accessToken = searchParams.get('access_token')
+        const refreshToken = searchParams.get('refresh_token')
+        const userId = searchParams.get('user_id')
+        
+        if (accessToken && refreshToken && userId) {
+          // Direct token flow - backend already processed the OAuth
+          const userData = {
+            id: userId,
+            email: '', // Will be fetched from user info
+            full_name: '',
+            profile_picture: '',
+            phone_number: '',
+            country: 'Kenya',
+            currency: 'KES',
+            wallet_balance_kes: 0,
+            wallet_balance_usdt: 0,
+            wallet_status: 'active',
+            is_verified: true
+          }
+          
+          const tokens = {
+            access_token: accessToken,
+            token_type: 'bearer',
+            refresh_token: refreshToken
+          }
+          
+          // Get user info from backend
+          try {
+            const userResponse = await AuthService.getCurrentUser()
+            userData.email = userResponse.email
+            userData.full_name = userResponse.full_name
+            userData.profile_picture = userResponse.profile_picture
+            userData.phone_number = userResponse.phone_number
+            userData.wallet_balance_kes = userResponse.wallet_balance_kes || 0
+            userData.wallet_balance_usdt = userResponse.wallet_balance_usdt || 0
+            userData.wallet_status = userResponse.status || 'active'
+            userData.is_verified = userResponse.is_email_verified || false
+          } catch (userError) {
+            console.warn('Could not fetch user details:', userError)
+          }
+          
+          login(userData, tokens)
+          toast.success('Google login successful!')
+          navigate('/dashboard')
+          return
+        }
+        
+        // Fallback to code exchange flow
         const code = searchParams.get('code')
         const error = searchParams.get('error')
         

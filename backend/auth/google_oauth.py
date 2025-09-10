@@ -344,7 +344,7 @@ async def google_callback(code: str):
         refresh_token = create_refresh_token(user.id)
         
         # Redirect to frontend with tokens
-        frontend_url = f"http://localhost:5173/auth/google/callback?" \
+        frontend_url = f"{settings.frontend_url}/auth/google/callback?" \
                       f"access_token={access_token}&" \
                       f"refresh_token={refresh_token}&" \
                       f"user_id={user.id}"
@@ -354,7 +354,7 @@ async def google_callback(code: str):
     except Exception as e:
         logger.error(f"Google callback error: {e}")
         # Redirect to frontend with error
-        error_url = f"http://localhost:5173/auth/error?message=Authentication failed"
+        error_url = f"{settings.frontend_url}/auth/error?message=Authentication failed"
         return RedirectResponse(url=error_url)
 
 @router.post("/refresh")
