@@ -81,9 +81,10 @@ export default function GoogleCallback() {
         }
 
         // Exchange code for tokens
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
         const response = await AuthService.googleAuth(
           code,
-          `${window.location.origin}/auth/google/callback`
+          `${API_BASE_URL}/auth/google/callback`
         )
 
         const { user, access_token, token_type } = response
