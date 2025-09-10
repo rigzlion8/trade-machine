@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { AuthService } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
 import toast from 'react-hot-toast'
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [isVerifying, setIsVerifying] = useState(true)
   const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [errorMessage, setErrorMessage] = useState('')
@@ -22,14 +24,45 @@ export default function VerifyEmail() {
       }
 
       try {
-        await AuthService.verifyEmail(token)
+        const response = await AuthService.verifyEmail(token)
         setVerificationStatus('success')
         toast.success('Email verified successfully!')
         
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate('/login')
-        }, 3000)
+        // Auto-login user if tokens are provided
+        if (response.access_token && response.user) {
+          // Transform user data to match our User interface
+          const userData = {
+            id: response.user.id,
+            email: response.user.email,
+            full_name: response.user.full_name,
+            profile_picture: response.user.profile_picture,
+            phone_number: response.user.phone_number,
+            country: 'Kenya', // Default for now
+            currency: 'KES', // Default for now
+            wallet_balance_kes: response.user.wallet_balance_kes || 0,
+            wallet_balance_usdt: response.user.wallet_balance_usdt || 0,
+            wallet_status: response.user.status || 'active',
+            is_verified: response.user.is_email_verified || false
+          }
+          
+          // Store tokens and user data
+          localStorage.setItem('access_token', response.access_token)
+          localStorage.setItem('refresh_token', response.refresh_token)
+          localStorage.setItem('user', JSON.stringify(userData))
+          
+          // Update auth context
+          login(userData)
+          
+          // Redirect to dashboard after 2 seconds
+          setTimeout(() => {
+            navigate('/dashboard')
+          }, 2000)
+        } else {
+          // Fallback to login page if no tokens
+          setTimeout(() => {
+            navigate('/login')
+          }, 3000)
+        }
         
       } catch (error: any) {
         console.error('Email verification failed:', error)
@@ -81,17 +114,17 @@ export default function VerifyEmail() {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
                 <p className="text-gray-600 mb-4">
-                  Your email has been successfully verified. You can now access all features of Trade Machine.
+                  Your email has been successfully verified. You're now logged in and ready to start trading!
                 </p>
                 <p className="text-sm text-gray-500">
-                  Redirecting to login page in a few seconds...
+                  Redirecting to your dashboard in a few seconds...
                 </p>
                 <div className="mt-6">
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate('/dashboard')}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                   >
-                    Go to Login
+                    Go to Dashboard
                   </button>
                 </div>
               </>

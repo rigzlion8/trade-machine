@@ -121,7 +121,7 @@ async def verify_email(token: str):
                 detail="User not found"
             )
         
-        # Get user data for welcome email
+        # Get user data for welcome email and response
         user_data = await users_collection.find_one({"_id": ObjectId(user_id)})
         if user_data:
             # Send welcome email
@@ -133,6 +133,23 @@ async def verify_email(token: str):
             except Exception as e:
                 logger.error(f"Error sending welcome email: {e}")
                 # Don't fail verification if welcome email fails
+            
+            # Create tokens for auto-login
+            access_token = create_user_token(str(user_data["_id"]), user_data["email"])
+            refresh_token = create_refresh_token(str(user_data["_id"]))
+            
+            # Convert to response model
+            user_data["id"] = str(user_data["_id"])
+            del user_data["_id"]
+            user_response = UserResponse(**user_data)
+            
+            return {
+                "message": "Email verified successfully",
+                "user": user_response,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer"
+            }
         
         return {"message": "Email verified successfully"}
         
