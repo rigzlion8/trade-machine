@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { 
   ChartBarIcon, 
@@ -10,6 +11,26 @@ import {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'send-money':
+        navigate('/wallet')
+        break
+      case 'create-bot':
+        navigate('/bots')
+        break
+      case 'add-funds':
+        navigate('/wallet')
+        break
+      case 'view-reports':
+        navigate('/bots')
+        break
+      default:
+        break
+    }
+  }
 
   if (!user) {
     return (
@@ -34,7 +55,10 @@ export default function Dashboard() {
       {/* Wallet Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* KES Balance */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div 
+          onClick={() => navigate('/wallet')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <WalletIcon className="h-8 w-8 text-kenya-green" />
@@ -54,7 +78,10 @@ export default function Dashboard() {
         </div>
 
         {/* USDT Balance */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div 
+          onClick={() => navigate('/wallet')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <CurrencyDollarIcon className="h-8 w-8 text-blue-600" />
@@ -74,7 +101,10 @@ export default function Dashboard() {
         </div>
 
         {/* Active Bots */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div 
+          onClick={() => navigate('/bots')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <ChartBarIcon className="h-8 w-8 text-primary-600" />
@@ -92,7 +122,10 @@ export default function Dashboard() {
         </div>
 
         {/* Total Profit */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div 
+          onClick={() => navigate('/bots')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <CurrencyDollarIcon className="h-8 w-8 text-success-600" />
@@ -114,19 +147,31 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <button 
+            onClick={() => handleQuickAction('send-money')}
+            className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors duration-200"
+          >
             <WalletIcon className="h-5 w-5 mr-2" />
             Send Money
           </button>
-          <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <button 
+            onClick={() => handleQuickAction('create-bot')}
+            className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors duration-200"
+          >
             <ChartBarIcon className="h-5 w-5 mr-2" />
             Create Bot
           </button>
-          <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <button 
+            onClick={() => handleQuickAction('add-funds')}
+            className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors duration-200"
+          >
             <CurrencyDollarIcon className="h-5 w-5 mr-2" />
             Add Funds
           </button>
-          <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <button 
+            onClick={() => handleQuickAction('view-reports')}
+            className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors duration-200"
+          >
             <ChartBarIcon className="h-5 w-5 mr-2" />
             View Reports
           </button>
@@ -137,7 +182,10 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
         <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div 
+            onClick={() => navigate('/bots')}
+            className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+          >
             <div className="flex items-center">
               <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
               <div>
@@ -148,7 +196,10 @@ export default function Dashboard() {
             <span className="text-sm font-medium text-success-600">+KES 2,450</span>
           </div>
           
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div 
+            onClick={() => navigate('/wallet')}
+            className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+          >
             <div className="flex items-center">
               <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
               <div>
@@ -159,7 +210,10 @@ export default function Dashboard() {
             <span className="text-sm font-medium text-primary-600">+KES 5,000</span>
           </div>
           
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div 
+            onClick={() => navigate('/bots')}
+            className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+          >
             <div className="flex items-center">
               <div className="w-2 h-2 bg-warning-500 rounded-full mr-3"></div>
               <div>
