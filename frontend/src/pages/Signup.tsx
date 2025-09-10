@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { AuthService } from '../services/api'
-import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
 export default function Signup() {
@@ -12,7 +12,6 @@ export default function Signup() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phoneNumber: '',
     password: '',
     confirmPassword: '',
     agreeToTerms: false
@@ -44,15 +43,6 @@ export default function Signup() {
       return false
     }
     
-    if (!formData.phoneNumber.trim()) {
-      toast.error('Please enter your phone number')
-      return false
-    }
-    
-    if (!/^(\+254|0)[0-9]{9}$/.test(formData.phoneNumber.replace(/\s/g, ''))) {
-      toast.error('Please enter a valid Kenyan phone number')
-      return false
-    }
     
     if (!formData.password) {
       toast.error('Please enter a password')
@@ -101,17 +91,9 @@ export default function Signup() {
     setIsLoading(true)
     
     try {
-      // Normalize phone number
-      const normalizedPhone = formData.phoneNumber.replace(/\s/g, '').startsWith('0') 
-        ? formData.phoneNumber.replace(/^0/, '+254')
-        : formData.phoneNumber.startsWith('+254') 
-          ? formData.phoneNumber 
-          : `+254${formData.phoneNumber}`
-
       const response = await AuthService.register({
         full_name: formData.fullName.trim(),
         email: formData.email.trim().toLowerCase(),
-        phone_number: normalizedPhone,
         password: formData.password
       })
       
@@ -248,30 +230,6 @@ export default function Signup() {
               </div>
             </div>
 
-            {/* Phone Number */}
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <PhoneIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  type="tel"
-                  required
-                  value={formData.phoneNumber}
-                  onChange={handleInputChange}
-                  className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  placeholder="0712345678 or +254712345678"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Enter your Kenyan phone number (e.g., 0712345678 or +254712345678)
-              </p>
-            </div>
 
             {/* Password */}
             <div>
