@@ -113,10 +113,13 @@ export class PaymentService {
     
     // Add provider for mobile money payments
     if (paymentMethod === 'mpesa' || paymentMethod === 'airtel_money') {
-      payload.provider = paymentMethod
+      // Map payment method to provider code
+      payload.provider = paymentMethod === 'airtel_money' ? 'airtel' : 'mpesa'
     }
     
+    console.log('Payment service payload:', payload)
     const response = await api.post('/payments/deposit/initialize', payload)
+    console.log('Payment service response:', response.data)
     return response.data
   }
 

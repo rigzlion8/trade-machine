@@ -25,6 +25,11 @@ async def initialize_deposit(
 ):
     """Initialize a deposit transaction."""
     try:
+        logger.info(f"Deposit request received: {request}")
+        logger.info(f"Payment method: {request.payment_method}")
+        logger.info(f"Phone number: {request.phone_number}")
+        logger.info(f"Provider: {request.provider}")
+        
         if request.amount <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

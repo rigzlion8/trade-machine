@@ -91,6 +91,7 @@ export default function Payments() {
         }
       }
 
+      console.log('Frontend deposit request:', { amount, depositMethod, phoneNumber })
       const result = await PaymentService.initializeDeposit(amount, depositMethod, phoneNumber)
       
       if (result.authorization_url) {
