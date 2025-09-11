@@ -132,3 +132,10 @@ class ExchangeRatesResponse(BaseModel):
     base: str = "KES"
     rates: Dict[str, float]
     last_updated: datetime
+
+class DepositInitializeRequest(BaseModel):
+    amount: float
+    payment_method: str = "card"
+    phone_number: Optional[str] = None
+    provider: Optional[str] = None
+    bank_code: Optional[str] = None

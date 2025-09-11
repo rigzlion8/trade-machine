@@ -5,7 +5,8 @@ from datetime import datetime
 
 from models.payment import (
     PaymentCreate, PaymentResponse, PaymentUpdate, PaymentFilter, 
-    PaymentStats, BankAccountCreate, BankAccountResponse
+    PaymentStats, BankAccountCreate, BankAccountResponse,
+    DepositInitializeRequest
 )
 from services.payment_service import payment_service
 from payments.paystack_service import paystack_service
@@ -19,41 +20,37 @@ router = APIRouter()
 
 @router.post("/deposit/initialize", response_model=dict)
 async def initialize_deposit(
-    amount: float,
-    payment_method: str = "card",
-    phone_number: Optional[str] = None,
-    provider: Optional[str] = None,
-    bank_code: Optional[str] = None,
+    request: DepositInitializeRequest,
     current_user: User = Depends(get_current_active_user)
 ):
     """Initialize a deposit transaction."""
     try:
-        if amount <= 0:
+        if request.amount <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Amount must be greater than 0"
             )
         
-        if amount < 100:
+        if request.amount < 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Minimum deposit amount is KES 100"
             )
         
         # Validate payment method specific requirements
-        if payment_method in ["mpesa", "airtel_money"]:
-            if not phone_number:
+        if request.payment_method in ["mpesa", "airtel_money"]:
+            if not request.phone_number:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Phone number is required for mobile money payments"
                 )
-            if not provider:
+            if not request.provider:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Provider is required for mobile money payments"
                 )
-        elif payment_method == "ussd":
-            if not bank_code:
+        elif request.payment_method == "ussd":
+            if not request.bank_code:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Bank code is required for USSD payments"
@@ -61,12 +58,12 @@ async def initialize_deposit(
         
         result = await payment_service.initialize_deposit(
             user_id=str(current_user.id),
-            amount=amount,
+            amount=request.amount,
             email=current_user.email,
-            payment_method=PaymentMethod(payment_method),
-            phone_number=phone_number,
-            provider=provider,
-            bank_code=bank_code
+            payment_method=PaymentMethod(request.payment_method),
+            phone_number=request.phone_number,
+            provider=request.provider,
+            bank_code=request.bank_code
         )
         
         if not result["success"]:
