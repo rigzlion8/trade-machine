@@ -117,9 +117,7 @@ export class PaymentService {
       payload.provider = paymentMethod === 'airtel_money' ? 'airtel' : 'mpesa'
     }
     
-    console.log('Payment service payload:', payload)
     const response = await api.post('/payments/deposit/initialize', payload)
-    console.log('Payment service response:', response.data)
     return response.data
   }
 

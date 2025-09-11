@@ -85,6 +85,7 @@ class PaymentService:
     async def initialize_deposit(self, user_id: str, amount: float, email: str, payment_method: PaymentMethod = PaymentMethod.CARD, phone_number: str = None, provider: str = None, bank_code: str = None) -> Dict[str, Any]:
         """Initialize a deposit transaction."""
         try:
+            logger.info(f"Payment service initialize_deposit called with: user_id={user_id}, amount={amount}, email={email}, payment_method={payment_method}, phone_number={phone_number}, provider={provider}, bank_code={bank_code}")
             # Create payment record
             payment_data = PaymentCreate(
                 amount=amount,

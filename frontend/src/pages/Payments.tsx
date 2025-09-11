@@ -91,7 +91,6 @@ export default function Payments() {
         }
       }
 
-      console.log('Frontend deposit request:', { amount, depositMethod, phoneNumber })
       const result = await PaymentService.initializeDeposit(amount, depositMethod, phoneNumber)
       
       if (result.authorization_url) {
@@ -105,6 +104,8 @@ export default function Payments() {
       }
     } catch (error: any) {
       console.error('Deposit error:', error)
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
       
       // Better error handling
       let errorMessage = 'Failed to initialize deposit'

@@ -589,6 +589,7 @@ class PaystackService:
     async def initialize_mobile_money_payment(self, amount: float, phone_number: str, reference: str, callback_url: str, provider: str = "mpesa") -> Dict[str, Any]:
         """Initialize a mobile money payment (M-Pesa or Airtel Money)."""
         try:
+            logger.info(f"Paystack initialize_mobile_money_payment called with: amount={amount}, phone_number={phone_number}, reference={reference}, callback_url={callback_url}, provider={provider}")
             if not self.secret_key:
                 raise ValueError("Paystack not configured")
             
